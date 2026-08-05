@@ -20,10 +20,10 @@
       "tintColor": "#02D7E0",
       "versions": [
         {
-          "version": "1.4",
+          "version": "1.4.0",
           "date": "2026-08-05",
-          "size": 4645413,
-          "downloadURL": "https://github.com/MinePlayer16/arsenic/releases/download/v1.4/Arsenic-1.4.ipa",
+          "size": 4646967,
+          "downloadURL": "https://github.com/MinePlayer16/arsenic/releases/download/v1.4.0/Arsenic-1.4.0.ipa",
           "localizedDescription": "",
           "minOSVersion": "17.0"
         }

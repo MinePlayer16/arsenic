@@ -694,7 +694,7 @@
 					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
 					"$(PROJECT_DIR)/Arsenic/resident/output",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.4.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "$(inherited)";
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
@@ -769,7 +769,7 @@
 					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
 					"$(PROJECT_DIR)/Arsenic/resident/output",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.4.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "$(inherited)";
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
@@ -978,7 +978,7 @@
 					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
 					"$(PROJECT_DIR)/Arsenic/resident/output",
 				);
-				MARKETING_VERSION = 1.4;
+				MARKETING_VERSION = 1.4.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "$(inherited)";
 				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
