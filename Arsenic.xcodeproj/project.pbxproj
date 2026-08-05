@@ -1,0 +1,1101 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AAA2989D2F7418CC000B5902 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		AA73F7982F7BC6CB00134C31 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		AA794BC92F828668001F0544 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		AAA297772F72D439000B5902 /* Arsenic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Arsenic.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAA2982D2F741178000B5902 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB0A9F7E2FBBBE5100C03573 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB1C33802FD7B58E000677B5 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB1C38E32FD7CF8A000677B5 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB222AA92FC36B8A001D5118 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB222C212FC3707B001D5118 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB3EF02A2FEB07BB009040FC /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB4112152FB93FB800461945 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB4117392FB9597C00461945 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB45558C2FC7DA4F004466F5 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB45D79F2FD01E4A00076C12 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB45DC7F2FD01F6700076C12 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB45DE262FD022D800076C12 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB5948FE2FC0DFEA006FB8AE /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FB6E0D8C2FD617F8003D17B7 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBA008522FB522840080FFE2 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBA376182FB7FE5600886898 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBA40B372FF02FE40094D8DA /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBAA37D72FB96407003A81C6 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBBF227D2FAE5E7E00AF5849 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBCF789E2FEC78CD009B4312 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBDA75932FCB770D00816DA0 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBE1CB812FC0EA040043E3DA /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBE1D63D2FC239CE0043E3DA /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBE3DA332FD4A45700529B2F /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBEF02242FAC52BF005E14B9 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBEF03482FAC52D5005E14B9 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBFA38382FB68E0600B9F081 /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+		FBFECAA52FCF1D67006A02BE /* ChOma.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ChOma.xcodeproj; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AAA2978E2F72D43A000B5902 /* Exceptions for "Arsenic" folder in "Arsenic" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				tweaks/experimental/NotificationIslandActivityAttributes.swift,
+				tweaks/experimental/NotificationIslandLiveActivityBridge.swift,
+				tweaks/experimental/NotificationIslandWidget/Info.plist,
+				tweaks/experimental/NotificationIslandWidget/NotificationIslandWidgetBundle.swift,
+				XPF/.gitignore,
+				XPF/.gitmodules,
+				XPF/.vscode/settings.json,
+				XPF/external/ChOma/.gitignore,
+				XPF/external/ChOma/.vscode/settings.json,
+				XPF/external/ChOma/cert.p12,
+				XPF/external/ChOma/external/ios/entitlements.plist,
+				XPF/external/ChOma/external/ios/libcrypto.a,
+				XPF/external/ChOma/external/ios/libssl.a,
+				XPF/external/ChOma/include/choma,
+				XPF/external/ChOma/LICENSE,
+				XPF/external/ChOma/Makefile,
+				XPF/external/ChOma/README.md,
+				XPF/external/ChOma/src/arm64.c,
+				XPF/external/ChOma/src/Base64.c,
+				XPF/external/ChOma/src/BufferedStream.c,
+				XPF/external/ChOma/src/CodeDirectory.c,
+				XPF/external/ChOma/src/CSBlob.c,
+				XPF/external/ChOma/src/DER.c,
+				XPF/external/ChOma/src/DyldSharedCache.c,
+				XPF/external/ChOma/src/Entitlements.c,
+				XPF/external/ChOma/src/Fat.c,
+				XPF/external/ChOma/src/FileStream.c,
+				XPF/external/ChOma/src/Host.c,
+				XPF/external/ChOma/src/MachO.c,
+				XPF/external/ChOma/src/MachOLoadCommand.c,
+				XPF/external/ChOma/src/MemoryStream.c,
+				XPF/external/ChOma/src/PatchFinder_arm64.c,
+				XPF/external/ChOma/src/PatchFinder.c,
+				XPF/external/ChOma/src/Util.c,
+				XPF/external/ChOma/tests/choma_cli/main.c,
+				XPF/external/ChOma/tests/choma_sign/main.c,
+				XPF/external/ChOma/tests/ct_bypass/main.c,
+				XPF/external/ChOma/tests/dsc_extract/main.c,
+				XPF/external/ChOma/tests/dsc_tester/main.c,
+				XPF/external/ChOma/tests/dyld_patch/main.c,
+				XPF/external/ChOma/tests/dylib_insert/main.c,
+				XPF/external/ChOma/tests/fat_create/main.c,
+				XPF/external/ChOma/tests/kpf/main.c,
+				XPF/LICENSE.md,
+				XPF/Makefile,
+				XPF/output/ios/libxpf.dylib,
+				XPF/output/ios/xpf_test,
+				XPF/output/iphonesimulator/libxpf.dylib,
+				XPF/src/bad_recovery.c,
+				XPF/src/cli/main.c,
+				XPF/src/common.c,
+				XPF/src/decompress.c,
+				XPF/src/decompress.LICENSE,
+				XPF/src/non_ppl.c,
+				XPF/src/ppl.c,
+				XPF/src/xpf.c,
+			);
+			target = AAA297762F72D439000B5902 /* Arsenic */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		AA794C7B2F853D1A001F0544 /* Exceptions for "Arsenic" folder in "Copy Files" phase from "Arsenic" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			attributesByRelativePath = {
+				XPF/output/ios/libxpf.dylib = (CodeSignOnCopy, );
+			};
+			buildPhase = AAA2989D2F7418CC000B5902 /* CopyFiles */;
+			membershipExceptions = (
+				XPF/output/ios/libxpf.dylib,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AAA297792F72D439000B5902 /* Arsenic */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AAA2978E2F72D43A000B5902 /* Exceptions for "Arsenic" folder in "Arsenic" target */,
+				AA794C7B2F853D1A001F0544 /* Exceptions for "Arsenic" folder in "Copy Files" phase from "Arsenic" target */,
+			);
+			path = Arsenic;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AAA297742F72D439000B5902 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA73F7C72F7BC6CB00134C31 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AA794BF82F828668001F0544 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AAA2976E2F72D439000B5902 = {
+			isa = PBXGroup;
+			children = (
+				AAA297792F72D439000B5902 /* Arsenic */,
+				AAA298702F74153F000B5902 /* Frameworks */,
+				AAA297782F72D439000B5902 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AAA297782F72D439000B5902 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AAA297772F72D439000B5902 /* Arsenic.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AAA298312F741178000B5902 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AAA298702F74153F000B5902 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		FB0A9FB02FBBBE5100C03573 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB1C33BF2FD7B58E000677B5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB1C39222FD7CF8A000677B5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB222ADB2FC36B8A001D5118 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB222C532FC3707B001D5118 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB3EF06D2FEB07BB009040FC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB4112462FB93FB800461945 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB41176B2FB9597C00461945 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB4555C12FC7DA4F004466F5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB45D7D52FD01E4A00076C12 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB45DCB52FD01F6700076C12 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB45DE5D2FD022D800076C12 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB5949302FC0DFEA006FB8AE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FB6E0DC92FD617F8003D17B7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBA008852FB522840080FFE2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBA376492FB7FE5600886898 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBA40B782FF02FE40094D8DA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBAA38092FB96407003A81C6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBBF22B02FAE5E7E00AF5849 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBCF78E12FEC78CD009B4312 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBDA75C92FCB770D00816DA0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBE1CBB32FC0EA040043E3DA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBE1D66F2FC239CE0043E3DA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBE3DA702FD4A45700529B2F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBEF02552FAC52BF005E14B9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBEF03792FAC52D5005E14B9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBFA386B2FB68E0600B9F081 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FBFECADC2FCF1D67006A02BE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AAA297762F72D439000B5902 /* Arsenic */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAA2978F2F72D43A000B5902 /* Build configuration list for PBXNativeTarget "Arsenic" */;
+			buildPhases = (
+				AAA2986F2F741423000B5902 /* ShellScript */,
+				AAA297732F72D439000B5902 /* Sources */,
+				AAA297742F72D439000B5902 /* Frameworks */,
+				AAA297752F72D439000B5902 /* Resources */,
+				AAA2989D2F7418CC000B5902 /* CopyFiles */,
+				FBC0A0012FD6000000C0A001 /* Copy Simulator XPF */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AAA297792F72D439000B5902 /* Arsenic */,
+			);
+			name = Arsenic;
+			packageProductDependencies = (
+			);
+			productName = Arsenic;
+			productReference = AAA297772F72D439000B5902 /* Arsenic.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AAA2976F2F72D439000B5902 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					AAA297762F72D439000B5902 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = AAA297722F72D439000B5902 /* Build configuration list for PBXProject "Arsenic" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AAA2976E2F72D439000B5902;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = AAA297782F72D439000B5902 /* Products */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = FBA376492FB7FE5600886898 /* Products */;
+					ProjectRef = FBA376182FB7FE5600886898 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBEF03792FAC52D5005E14B9 /* Products */;
+					ProjectRef = FBEF03482FAC52D5005E14B9 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB41176B2FB9597C00461945 /* Products */;
+					ProjectRef = FB4117392FB9597C00461945 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBE1CBB32FC0EA040043E3DA /* Products */;
+					ProjectRef = FBE1CB812FC0EA040043E3DA /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = AA794BF82F828668001F0544 /* Products */;
+					ProjectRef = AA794BC92F828668001F0544 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB0A9FB02FBBBE5100C03573 /* Products */;
+					ProjectRef = FB0A9F7E2FBBBE5100C03573 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB4112462FB93FB800461945 /* Products */;
+					ProjectRef = FB4112152FB93FB800461945 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB222ADB2FC36B8A001D5118 /* Products */;
+					ProjectRef = FB222AA92FC36B8A001D5118 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB45DE5D2FD022D800076C12 /* Products */;
+					ProjectRef = FB45DE262FD022D800076C12 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB4555C12FC7DA4F004466F5 /* Products */;
+					ProjectRef = FB45558C2FC7DA4F004466F5 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBDA75C92FCB770D00816DA0 /* Products */;
+					ProjectRef = FBDA75932FCB770D00816DA0 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB45D7D52FD01E4A00076C12 /* Products */;
+					ProjectRef = FB45D79F2FD01E4A00076C12 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBA008852FB522840080FFE2 /* Products */;
+					ProjectRef = FBA008522FB522840080FFE2 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBEF02552FAC52BF005E14B9 /* Products */;
+					ProjectRef = FBEF02242FAC52BF005E14B9 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = AAA298312F741178000B5902 /* Products */;
+					ProjectRef = AAA2982D2F741178000B5902 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB1C33BF2FD7B58E000677B5 /* Products */;
+					ProjectRef = FB1C33802FD7B58E000677B5 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBAA38092FB96407003A81C6 /* Products */;
+					ProjectRef = FBAA37D72FB96407003A81C6 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBCF78E12FEC78CD009B4312 /* Products */;
+					ProjectRef = FBCF789E2FEC78CD009B4312 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBFA386B2FB68E0600B9F081 /* Products */;
+					ProjectRef = FBFA38382FB68E0600B9F081 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB6E0DC92FD617F8003D17B7 /* Products */;
+					ProjectRef = FB6E0D8C2FD617F8003D17B7 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBFECADC2FCF1D67006A02BE /* Products */;
+					ProjectRef = FBFECAA52FCF1D67006A02BE /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB45DCB52FD01F6700076C12 /* Products */;
+					ProjectRef = FB45DC7F2FD01F6700076C12 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBBF22B02FAE5E7E00AF5849 /* Products */;
+					ProjectRef = FBBF227D2FAE5E7E00AF5849 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB1C39222FD7CF8A000677B5 /* Products */;
+					ProjectRef = FB1C38E32FD7CF8A000677B5 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBE3DA702FD4A45700529B2F /* Products */;
+					ProjectRef = FBE3DA332FD4A45700529B2F /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBA40B782FF02FE40094D8DA /* Products */;
+					ProjectRef = FBA40B372FF02FE40094D8DA /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FBE1D66F2FC239CE0043E3DA /* Products */;
+					ProjectRef = FBE1D63D2FC239CE0043E3DA /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB3EF06D2FEB07BB009040FC /* Products */;
+					ProjectRef = FB3EF02A2FEB07BB009040FC /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB222C532FC3707B001D5118 /* Products */;
+					ProjectRef = FB222C212FC3707B001D5118 /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = FB5949302FC0DFEA006FB8AE /* Products */;
+					ProjectRef = FB5948FE2FC0DFEA006FB8AE /* ChOma.xcodeproj */;
+				},
+				{
+					ProductGroup = AA73F7C72F7BC6CB00134C31 /* Products */;
+					ProjectRef = AA73F7982F7BC6CB00134C31 /* ChOma.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				AAA297762F72D439000B5902 /* Arsenic */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AAA297752F72D439000B5902 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AAA2986F2F741423000B5902 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then\n    make -C \"$SRCROOT/Arsenic/XPF\" output/iphonesimulator/libxpf.dylib\nelse\n    make -C \"$SRCROOT/Arsenic/XPF\" output/ios/libxpf.dylib\nfi\n";
+		};
+		FBC0A0012FD6000000C0A001 /* Copy Simulator XPF */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Arsenic/XPF/output/iphonesimulator/libxpf.dylib",
+			);
+			name = "Copy Simulator XPF";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then\n    cp \"$SRCROOT/Arsenic/XPF/output/iphonesimulator/libxpf.dylib\" \"$TARGET_BUILD_DIR/$WRAPPER_NAME/libxpf.dylib\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AAA297732F72D439000B5902 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AAA297902F72D43A000B5902 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1004000;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Arsenic/XPF/src",
+					"$(SRCROOT)/Arsenic/XPF/external/ChOma/include",
+				);
+				INFOPLIST_FILE = Arsenic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Arsenic;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				MARKETING_VERSION = 1.4;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios/libxpf.dylib",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator/libxpf.dylib",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.iggy05.ios-arsenic";
+				PRODUCT_NAME = Arsenic;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AAA297912F72D43A000B5902 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1004000;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Arsenic/XPF/src",
+					"$(SRCROOT)/Arsenic/XPF/external/ChOma/include",
+				);
+				INFOPLIST_FILE = Arsenic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Arsenic;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				MARKETING_VERSION = 1.4;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios/libxpf.dylib",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator/libxpf.dylib",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.iggy05.ios-arsenic";
+				PRODUCT_NAME = Arsenic;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AAA297922F72D43A000B5902 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					arm64e,
+					"$(ARCHS_STANDARD)",
+				);
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AAA297932F72D43A000B5902 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					arm64e,
+					"$(ARCHS_STANDARD)",
+				);
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				OTHER_CFLAGS = "";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C0D3C0DE0000000000000010 /* VPhone Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1004000;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"ARSENIC_VPHONE_DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Arsenic/XPF/src",
+					"$(SRCROOT)/Arsenic/XPF/external/ChOma/include",
+				);
+				INFOPLIST_FILE = Arsenic/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Arsenic VPhone";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/macos",
+					"$(PROJECT_DIR)/Arsenic/XPF/external/ChOma/external/ios",
+					"$(PROJECT_DIR)/Arsenic/resident/output",
+				);
+				MARKETING_VERSION = 1.4;
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "$(inherited)";
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/ios/libxpf.dylib",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Arsenic/XPF/output/iphonesimulator/libxpf.dylib",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.iggy05.ios-arsenic";
+				PRODUCT_NAME = Arsenic;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "VPhone Debug";
+		};
+		C0D3C0DE0000000000000020 /* VPhone Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					arm64e,
+					"$(ARCHS_STANDARD)",
+				);
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7LGY4NE2VM;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"ARSENIC_VPHONE_DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = "VPhone Debug";
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AAA297722F72D439000B5902 /* Build configuration list for PBXProject "Arsenic" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAA297922F72D43A000B5902 /* Debug */,
+				C0D3C0DE0000000000000020 /* VPhone Debug */,
+				AAA297932F72D43A000B5902 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAA2978F2F72D43A000B5902 /* Build configuration list for PBXNativeTarget "Arsenic" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAA297902F72D43A000B5902 /* Debug */,
+				C0D3C0DE0000000000000010 /* VPhone Debug */,
+				AAA297912F72D43A000B5902 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AAA2976F2F72D439000B5902 /* Project object */;
+}

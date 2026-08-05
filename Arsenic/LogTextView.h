@@ -1,0 +1,48 @@
+//
+//  LogTextView.h
+//  Arsenic
+//
+//  Created by seo on 4/7/26.
+//
+
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
+
+@interface LogTextView : UITextView
+@end
+
+void log_init(void);
+void log_write(const char *msg);
+void log_write_raw_no_timestamp(const char *msg);
+void log_set_verbose(BOOL enabled);
+BOOL log_verbose_enabled(void);
+void log_user(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+// Persistent session logs. When a chain run begins, call log_session_begin()
+// to open a timestamped file at <Documents>/chain-YYYYMMDD-HHMMSS.log.
+// Every subsequent line emitted via the printf macro / log_user / log_write
+// is tee'd into that file with an [HH:MM:SS.mmm] prefix. Call log_session_end()
+// when the chain run finishes (typically in @finally) to flush + close.
+// Info.plist's UIFileSharingEnabled surfaces these files in Files.app under
+// On My iPhone → Arsenic.
+void log_session_begin(void);
+void log_session_end(void);
+
+// Absolute path of the most recent session log file, or nil if none exist.
+NSString * _Nullable log_most_recent_session_path(void);
+
+// Snapshot of the in-app ring buffer (joined with '\n'). Always reflects the
+// current state of what the user sees in Settings → View Log — boot identity,
+// chain output, anything emitted via the printf macro / log_user. Returned
+// even when no chain session is active, so the Contact email can ship live
+// context regardless of whether log_session_begin/end ran.
+NSString *log_inapp_buffer_snapshot(void);
+
+// Mirror printf into the LogTextView ring buffer. Any TU that imports this
+// header gets its printf calls echoed both to stdout and to the in-app log.
+#define printf(fmt, ...) ({ \
+    printf(fmt, ##__VA_ARGS__); \
+    char _logbuf[2560]; \
+    snprintf(_logbuf, sizeof(_logbuf), fmt, ##__VA_ARGS__); \
+    log_write(_logbuf); \
+})

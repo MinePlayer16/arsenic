@@ -1,0 +1,64 @@
+# Xcode
+#
+# gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
+
+## User settings
+xcuserdata/
+
+## Obj-C/Swift specific
+*.hmap
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Local build artifacts produced by scripts/build.sh
+/build/
+## Regenerated each build by scripts/gen-changelog.sh
+/Arsenic/Changelog.plist
+
+## Arsenic diagnostic logs pulled from R2 (local mirror, not committed)
+/logs/
+
+## Stray local research / orphaned Xcode dirs that should never be committed
+/22D60__iPhone15,3/
+/darksword-kexploit-fun.xcodeproj/
+
+## AI-agent docs (kept local, not pushed)
+/CLAUDE.md
+/AGENTS.md
+
+# CocoaPods
+#
+# We recommend against adding the Pods directory to your .gitignore. However
+# you should judge for yourself, the pros and cons are mentioned at:
+# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
+#
+# Pods/
+#
+# Add this line if you want to avoid checking in source code from the Xcode workspace
+# *.xcworkspace
+
+# Carthage
+#
+# Add this line if you want to avoid checking in source code from Carthage dependencies.
+# Carthage/Checkouts
+
+Carthage/Build/
+
+# fastlane
+#
+# It is recommended to not store the screenshots in the git repo.
+# Instead, use fastlane to re-generate the screenshots whenever they are needed.
+# For more information about the recommended setup visit:
+# https://docs.fastlane.tools/best-practices/source-control/#source-control
+
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+.DS_Store
+/kernels
+Arsenic/resident/output/*.dylib
+Arsenic/resident/output/*.thin

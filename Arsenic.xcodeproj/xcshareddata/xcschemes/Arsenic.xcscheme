@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "2620"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES"
+      buildArchitectures = "Automatic">
+      <PostActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Install Arsenic on the selected iOS device"
+               scriptText = "if [ &quot;${PLATFORM_NAME:-}&quot; = &quot;iphoneos&quot; ] &amp;&amp; [ -n &quot;${TARGET_DEVICE_IDENTIFIER:-}&quot; ] &amp;&amp; [ -d &quot;${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}&quot; ]; then&#10;  echo &quot;[Arsenic scheme] installing ${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME} to ${TARGET_DEVICE_IDENTIFIER}&quot;&#10;  /usr/bin/xcrun devicectl device install app --device &quot;${TARGET_DEVICE_IDENTIFIER}&quot; &quot;${BUILT_PRODUCTS_DIR}/${FULL_PRODUCT_NAME}&quot;&#10;fi&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "AAA297762F72D439000B5902"
+                     BuildableName = "Arsenic.app"
+                     BlueprintName = "Arsenic"
+                     ReferencedContainer = "container:Arsenic.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PostActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "AAA297762F72D439000B5902"
+               BuildableName = "Arsenic.app"
+               BlueprintName = "Arsenic"
+               ReferencedContainer = "container:Arsenic.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      shouldAutocreateTestPlan = "YES">
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Release"
+      selectedDebuggerIdentifier = ""
+      selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "AAA297762F72D439000B5902"
+            BuildableName = "Arsenic.app"
+            BlueprintName = "Arsenic"
+            ReferencedContainer = "container:Arsenic.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "AAA297762F72D439000B5902"
+            BuildableName = "Arsenic.app"
+            BlueprintName = "Arsenic"
+            ReferencedContainer = "container:Arsenic.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>

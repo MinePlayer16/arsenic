@@ -1,0 +1,50 @@
+name: Arsenic Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Update types (patch, minor, major, none)'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - none
+      custom_version:
+        description: 'Custom version'
+        required: false
+        type: string
+      message:
+        description: 'release details'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run release script
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          VERSION: ${{ inputs.custom_version }}
+        run: |
+          gh auth setup-git
+          
+          ./scripts/release.sh "${{ inputs.message }}"

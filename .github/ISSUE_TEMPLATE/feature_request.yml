@@ -1,0 +1,31 @@
+name: Feature Request
+description: Suggest an idea for Arsenic.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No formal proposal needed. Just describe the idea in your own words.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Arsenic to add or improve?
+      placeholder: "Add a one-tap way to reapply my favorite tweaks after reboot."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this help?
+      description: Optional, but useful for deciding priority.
+      placeholder: "It would save time when testing because..."
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Optional. Add screenshots, examples from other tweaks/apps, target iOS versions, or whether you can test.

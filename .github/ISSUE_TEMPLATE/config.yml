@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Latest Release
+    url: https://github.com/MinePlayer16/arsenic/releases/latest
+    about: Install the newest IPA before reporting a bug.
+  - name: README and Supported Versions
+    url: https://github.com/MinePlayer16/arsenic#readme
+    about: Check install notes, supported devices, credits, and known target ranges.
+  - name: Search Existing Issues
+    url: https://github.com/MinePlayer16/arsenic/issues?q=is%3Aissue
+    about: See whether your bug or feature request has already been reported.

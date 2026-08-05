@@ -1,0 +1,42 @@
+name: Bug Report
+description: Tell us what broke.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it simple. A short report is fine; screenshots or logs help if you have them.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you try, and what went wrong?
+      placeholder: "I enabled StatBar, tapped Apply Tweaks, and SpringBoard resprung but the overlay never appeared."
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "iPhone 15 Pro, iPad Pro M4, etc."
+    validations:
+      required: true
+
+  - type: input
+    id: ios-version
+    attributes:
+      label: iOS version
+      placeholder: "18.7.1, 26.0.1, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Optional. Add Arsenic version, logs, screenshots, install method, or whether it worked before.
+      placeholder: "Arsenic v1.4.0, installed with AltStore. Log/screenshot here..."

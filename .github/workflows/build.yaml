@@ -1,0 +1,36 @@
+name: Build Arsenic
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS App
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Public Submodules
+        run: |
+          git config submodule.Arsenic/tweaks/private.update none
+          git submodule update --init --recursive
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Make build script executable
+        run: chmod +x ./scripts/build.sh
+
+      - name: Compile Arsenic (Unsigned)
+        run: ./scripts/build.sh
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Arsenic-TweakRunner
+          path: build/Arsenic.ipa
+          retention-days: 7
