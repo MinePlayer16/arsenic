@@ -558,8 +558,8 @@ LOCAL_TAG_SHA=""
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
     LOCAL_TAG_SHA=$(git rev-parse "refs/tags/$TAG^{commit}")
     if [ "$LOCAL_TAG_SHA" != "$HEAD_SHA" ]; then
-        echo "error: local tag $TAG points to $LOCAL_TAG_SHA, not HEAD $HEAD_SHA" >&2
-        exit 1
+        echo "==> local tag $TAG points to $LOCAL_TAG_SHA, moving to HEAD $HEAD_SHA (Stealth Patch)"
+        git tag -f "$TAG" "$HEAD_SHA"
     fi
 else
     echo "==> tagging $TAG"
@@ -571,11 +571,9 @@ if [ -z "$REMOTE_TAG_SHA" ]; then
     REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/$TAG" | awk '{print $1; exit}')
 fi
 if [ -n "$REMOTE_TAG_SHA" ] && [ "$REMOTE_TAG_SHA" != "$HEAD_SHA" ]; then
-    echo "error: remote tag $TAG points to $REMOTE_TAG_SHA, not HEAD $HEAD_SHA" >&2
-    exit 1
-fi
-
-if [ -z "$REMOTE_TAG_SHA" ]; then
+    echo "==> force pushing tag $TAG to origin (Stealth Patch)"
+    git push origin "refs/tags/$TAG" --force
+elif [ -z "$REMOTE_TAG_SHA" ]; then
     echo "==> pushing tag $TAG"
     git push origin "refs/tags/$TAG"
 fi

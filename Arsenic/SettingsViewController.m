@@ -272,18 +272,16 @@ static void settings_apply_speculumlite_once_async(const char *reason);
     
     [self validateFonts];
     [self setupCanvas];
-    [self setupToolbar];
+    [self setupSideMenu];
     [self renderAllWidgets];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    [self.navigationController setToolbarHidden:NO animated:YES];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    [self.navigationController setToolbarHidden:YES animated:YES];
 }
 
 - (void)setupCanvas {
@@ -291,7 +289,7 @@ static void settings_apply_speculumlite_once_async(const char *reason);
     double screenH = [UIScreen mainScreen].bounds.size.height;
     
     // Safe margin for nav bars and toolbars
-    double availableWidth = self.view.bounds.size.width - 40;
+    double availableWidth = self.view.bounds.size.width - 70;
     double availableHeight = self.view.bounds.size.height - 240; 
     
     double canvasW = availableWidth;
@@ -318,15 +316,36 @@ static void settings_apply_speculumlite_once_async(const char *reason);
     [self.canvas addGestureRecognizer:tap];
 }
 
-- (void)setupToolbar {
-    UIBarButtonItem *addBtn = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addWidget)];
-    UIBarButtonItem *textBtn = [[UIBarButtonItem alloc] initWithTitle:@"Text" style:UIBarButtonItemStylePlain target:self action:@selector(editSelectedText)];
-    UIBarButtonItem *colorBtn = [[UIBarButtonItem alloc] initWithTitle:@"Color" style:UIBarButtonItemStylePlain target:self action:@selector(editSelectedColor)];
-    UIBarButtonItem *fontBtn = [[UIBarButtonItem alloc] initWithTitle:@"Font" style:UIBarButtonItemStylePlain target:self action:@selector(importSelectedFont)];
-    UIBarButtonItem *delBtn = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemTrash target:self action:@selector(deleteSelected)];
-    UIBarButtonItem *flex = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
+- (void)setupSideMenu {
+    UIStackView *stack = [[UIStackView alloc] init];
+    stack.axis = UILayoutConstraintAxisVertical;
+    stack.spacing = 25;
+    stack.translatesAutoresizingMaskIntoConstraints = NO;
     
-    self.toolbarItems = @[addBtn, flex, textBtn, flex, colorBtn, flex, fontBtn, flex, delBtn];
+    UIButton *(^makeIconBtn)(NSString *, SEL) = ^UIButton *(NSString *iconName, SEL action) {
+        UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
+        UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:18 weight:UIImageSymbolWeightRegular];
+        UIImage *img = [[UIImage systemImageNamed:iconName] imageWithConfiguration:config];
+        
+        [btn setImage:img forState:UIControlStateNormal];
+        [btn addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+        return btn;
+    };
+    
+    // button icons
+    [stack addArrangedSubview:makeIconBtn(@"plus", @selector(addWidget))];
+    [stack addArrangedSubview:makeIconBtn(@"text.quote", @selector(editSelectedText))];
+    [stack addArrangedSubview:makeIconBtn(@"paintpalette", @selector(editSelectedColor))];
+    [stack addArrangedSubview:makeIconBtn(@"textformat", @selector(importSelectedFont))];
+    [stack addArrangedSubview:makeIconBtn(@"trash", @selector(deleteSelected))];
+    
+    [self.view addSubview:stack];
+    
+    // buttons vertically centered to the canvas
+    [NSLayoutConstraint activateConstraints:@[
+        [stack.centerYAnchor constraintEqualToAnchor:self.canvas.centerYAnchor],
+        [stack.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-15]
+    ]];
 }
 // Emulate the C backend formatter natively for the preview
 - (NSString *)previewTextForTemplate:(NSString *)template {
@@ -716,7 +735,13 @@ static void settings_apply_speculumlite_once_async(const char *reason);
 - (void)deleteSelected {
     if (!self.selectedLabel) return;
     NSUInteger idx = [self.labels indexOfObject:self.selectedLabel];
+    //checks if the label is still in the array
+    if (idx == NSNotFound) {
+        self.selectedLabel = nil;
+        return;
+    }
     [self.widgets removeObjectAtIndex:idx];
+    self.selectedLabel = nil;
     [self renderAllWidgets];
     [self saveState];
 }
