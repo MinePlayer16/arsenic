@@ -268,12 +268,10 @@ static const CGFloat kMargin = 20.0;
     UILabel *header = [self sectionHeader:@"What's New"];
     [s addArrangedSubview:header];
 
-    [s addArrangedSubview:[self compactRow:@"QuickLoader Bridge Upgrade and UI fix"
-                                     icon:@"bolt.fill" color:UIColor.systemOrangeColor]];
-    [s addArrangedSubview:[self compactRow:@"Three new tweaks: Magsafe Enabler, Speculum Lite and Notweafications"
-                                     icon:@"tray.and.arrow.down.fill" color:UIColor.systemGreenColor]];
-    [s addArrangedSubview:[self compactRow:@"Tweaks update by Kolbicz"
-                                     icon:@"arrow.triangle.2.circlepath" color:UIColor.systemBlueColor]];
+    [s addArrangedSubview:[self compactRow:@"Speculum Lite: Instantaneous refresh on wake"
+                                     icon:@"clock.fill" color:UIColor.systemGreenColor]];
+    [s addArrangedSubview:[self compactRow:@"Notweafications: Customize colors for any app notification"
+                                     icon:@"paintpalette.fill" color:UIColor.systemRedColor]];
 
     return card;
 }

@@ -2,8 +2,8 @@
   "name": "Arsenic",
   "subtitle": "Tweak runner for the DarkSword kernel r/w exploit",
   "description": "Arsenic is a fork of 0xjohnnydev's Cyanide, the iOS tweak runner built on top of the DarkSword kernel r/w primitive (CVE-2025-43510 / CVE-2025-43520).",
-  "iconURL": "https://raw.githubusercontent.com/zeroxjf/cyanide/main/Arsenic/Assets.xcassets/AppIcon.appiconset/icon-ios-1024x1024.png",
-  "headerURL": "https://raw.githubusercontent.com/zeroxjf/cyanide/main/Arsenic/Assets.xcassets/AppIcon.appiconset/icon-ios-1024x1024.png",
+  "iconURL": "https://raw.githubusercontent.com/MinePlayer16/arsenic/main/Arsenic/Assets.xcassets/AppIcon.appiconset/icon-ios-1024x1024.png",
+  "headerURL": "https://raw.githubusercontent.com/MinePlayer16/arsenic/main/Arsenic/Assets.xcassets/AppIcon.appiconset/icon-ios-1024x1024.png",
   "website": "https://github.com/MinePlayer16/arsenic",
   "tintColor": "#02D7E0",
   "featuredApps": [

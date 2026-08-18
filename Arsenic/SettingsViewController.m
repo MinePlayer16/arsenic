@@ -755,6 +755,236 @@ static void settings_apply_speculumlite_once_async(const char *reason);
 @end
 
 
+static void settings_apply_notweafications_once_async(const char *reason);
+static BOOL settings_ensure_kexploit(void);
+extern int escape_sbx_demo2(void); 
+// ==========================================
+// NOTWEAFICATIONS: APP PICKER & COLOR EDITOR
+// ==========================================
+
+@interface AppPickerViewController : UITableViewController
+@property (nonatomic, copy) void (^onSelect)(NSString *bundleID, NSString *appName);
+@property (nonatomic, strong) NSArray<NSDictionary *> *appsList;
+@end
+
+@implementation AppPickerViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"Select App";
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(close)];
+    
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSString *userApps = @"/var/containers/Bundle/Application";
+        NSString *sysApps = @"/Applications";
+        
+        // checks for sandbox presence
+        if (![fm isReadableFileAtPath:userApps]) {
+            // sandbox escape if needed
+            if (settings_ensure_kexploit()) {
+                escape_sbx_demo2();
+            }
+        }
+        
+        NSMutableArray *temp = [NSMutableArray array];
+        
+        // system apps
+        NSArray *sysItems = [fm contentsOfDirectoryAtPath:sysApps error:nil];
+        for (NSString *item in sysItems) {
+            if ([item hasSuffix:@".app"]) {
+                NSString *plistPath = [NSString stringWithFormat:@"%@/%@/Info.plist", sysApps, item];
+                NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+                
+                NSString *bID = info[@"CFBundleIdentifier"];
+                NSString *name = info[@"CFBundleDisplayName"] ?: info[@"CFBundleName"] ?: [item stringByReplacingOccurrencesOfString:@".app" withString:@""];
+                
+                if (bID.length > 0 && ![bID hasPrefix:@"com.apple.webapp"]) {
+                    [temp addObject:@{@"name": name, @"bundleID": bID}];
+                }
+            }
+        }
+        
+        // user apps
+        NSArray *uuids = [fm contentsOfDirectoryAtPath:userApps error:nil];
+        for (NSString *uuid in uuids) {
+            NSString *uuidPath = [userApps stringByAppendingPathComponent:uuid];
+            NSArray *appFolders = [fm contentsOfDirectoryAtPath:uuidPath error:nil];
+            
+            for (NSString *item in appFolders) {
+                if ([item hasSuffix:@".app"]) {
+                    NSString *plistPath = [NSString stringWithFormat:@"%@/%@/Info.plist", uuidPath, item];
+                    NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:plistPath];
+                    
+                    NSString *bID = info[@"CFBundleIdentifier"];
+                    NSString *name = info[@"CFBundleDisplayName"] ?: info[@"CFBundleName"] ?: [item stringByReplacingOccurrencesOfString:@".app" withString:@""];
+                    
+                    if (bID.length > 0) {
+                        [temp addObject:@{@"name": name, @"bundleID": bID}];
+                    }
+                }
+            }
+        }
+        
+        // order list
+        [temp sortUsingComparator:^NSComparisonResult(id a, id b) {
+            return [a[@"name"] localizedCaseInsensitiveCompare:b[@"name"]];
+        }];
+        
+        // refresh ui
+        dispatch_async(dispatch_get_main_queue(), ^{
+            self.appsList = temp;
+            [self.tableView reloadData];
+        });
+    });
+}
+
+- (void)close {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return self.appsList.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppCell"];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"AppCell"];
+    }
+    NSDictionary *app = self.appsList[indexPath.row];
+    cell.textLabel.text = app[@"name"];
+    cell.detailTextLabel.text = app[@"bundleID"];
+    cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSDictionary *app = self.appsList[indexPath.row];
+    if (self.onSelect) {
+        self.onSelect(app[@"bundleID"], app[@"name"]);
+    }
+    [self close];
+}
+@end
+
+@interface NotweaficationsEditorController : UITableViewController
+@property (nonatomic, strong) NSMutableArray<NSMutableDictionary *> *apps;
+@end
+
+@implementation NotweaficationsEditorController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"App Colors";
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addApp)];
+    [self loadData];
+}
+
+- (void)loadData {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    NSArray *saved = [d arrayForKey:@"NotweaficationsAppColors"];
+    
+    // Default list
+    if (!saved || saved.count == 0) {
+        saved = @[
+            @{@"appName": @"Messages", @"bundleID": @"com.apple.MobileSMS", @"hexColor": @"#33D961"},
+            @{@"appName": @"WhatsApp", @"bundleID": @"net.whatsapp.WhatsApp", @"hexColor": @"#25D366"},
+            @{@"appName": @"Instagram", @"bundleID": @"com.burbn.instagram", @"hexColor": @"#E1306C"},
+            @{@"appName": @"YouTube", @"bundleID": @"com.google.ios.youtube", @"hexColor": @"#FF0000"}
+        ];
+        [d setObject:saved forKey:@"NotweaficationsAppColors"];
+        [d synchronize];
+    }
+    
+    self.apps = [NSMutableArray array];
+    for (NSDictionary *dict in saved) {
+        [self.apps addObject:[dict mutableCopy]];
+    }
+    [self.tableView reloadData];
+}
+
+- (void)saveData {
+    [[NSUserDefaults standardUserDefaults] setObject:self.apps forKey:@"NotweaficationsAppColors"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    settings_apply_notweafications_once_async("Editor Action");
+}
+
+- (void)addApp {
+    AppPickerViewController *picker = [[AppPickerViewController alloc] init];
+    picker.onSelect = ^(NSString *bundleID, NSString *appName) {
+        // compares bundleids not to get duplicates
+        for (NSDictionary *dict in self.apps) {
+            if ([dict[@"bundleID"] isEqualToString:bundleID]) return;
+        }
+        
+        [self.apps insertObject:[@{
+            @"appName": appName,
+            @"bundleID": bundleID,
+            @"hexColor": @"#FFFFFF"
+        } mutableCopy] atIndex:0];
+        
+        [self saveData];
+        [self.tableView insertRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:0 inSection:0]] withRowAnimation:UITableViewRowAnimationAutomatic];
+    };
+    
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:picker];
+    [self presentViewController:nav animated:YES completion:nil];
+}
+
+#pragma mark - Table View Data Source
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return self.apps.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"AppColorCell"];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"AppColorCell"];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        
+        UIColorWell *colorWell = [[UIColorWell alloc] initWithFrame:CGRectMake(0, 0, 32, 32)];
+        colorWell.tag = 200;
+        cell.accessoryView = colorWell;
+    }
+    
+    NSMutableDictionary *appDict = self.apps[indexPath.row];
+
+    NSString *appName = appDict[@"appName"];
+    cell.textLabel.text = (appName.length > 0) ? appName : appDict[@"bundleID"];
+    cell.detailTextLabel.text = appDict[@"bundleID"];
+    cell.detailTextLabel.textColor = [UIColor secondaryLabelColor];
+    
+    // refresh dictionary on color change
+    UIColorWell *colorWell = (UIColorWell *)cell.accessoryView;
+    colorWell.selectedColor = colorFromHexString(appDict[@"hexColor"] ?: @"#FFFFFF");
+    
+    UIAction *colorAction = [UIAction actionWithHandler:^(__kindof UIAction * _Nonnull action) {
+        appDict[@"hexColor"] = hexStringFromColor(colorWell.selectedColor);
+        [self saveData];
+    }];
+    [colorWell removeTarget:nil action:NULL forControlEvents:UIControlEventValueChanged];
+    [colorWell addAction:colorAction forControlEvents:UIControlEventValueChanged];
+    
+    return cell;
+}
+
+// delete
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    return YES;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        [self.apps removeObjectAtIndex:indexPath.row];
+        [self saveData];
+        [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
+    }
+}
+
+@end
 
 
 
@@ -2348,6 +2578,7 @@ static uint64_t settings_now_us(void) {
 static void settings_apply_statbar_once_async(const char *reason);
 static void settings_apply_nsbar_once_async(const char *reason);
 static void settings_apply_nicebarlite_once_async(const char *reason);
+static void settings_apply_notweafications_once_async(const char *reason);
 static void settings_start_livewp_live_loop(void);
 static void settings_resume_livewp_after_wake_async(const char *reason);
 static void settings_pause_livewp_for_sleep_async(const char *reason);
@@ -2879,9 +3110,12 @@ static void settings_install_screen_awake_observers(void)
 {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        
+        dispatch_queue_t fastQueue = dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0);
+
         int status = notify_register_dispatch("com.apple.springboard.hasBlankedScreen",
                                               &g_springboard_blanked_notify_token,
-                                              dispatch_get_main_queue(), ^(int token) {
+                                              fastQueue, ^(int token) {
             (void)token;
             BOOL woke = settings_refresh_screen_awake_state("springboard.hasBlankedScreen");
             (void)settings_refresh_screen_lock_state("springboard.hasBlankedScreen");
@@ -2893,6 +3127,8 @@ static void settings_install_screen_awake_observers(void)
                 settings_resume_livewp_after_wake_async("screen awake");
                 settings_schedule_themer_quiet_repair_burst("screen awake");
                 settings_restart_gravity_motion_if_active("screen awake");
+                settings_apply_speculumlite_once_async("screen awake");
+                settings_apply_notweafications_once_async("screen awake");
             }
         });
         if (status != NOTIFY_STATUS_OK) {
@@ -2901,7 +3137,7 @@ static void settings_install_screen_awake_observers(void)
 
         status = notify_register_dispatch("com.apple.iokit.hid.displayStatus",
                                           &g_display_status_notify_token,
-                                          dispatch_get_main_queue(), ^(int token) {
+                                          fastQueue, ^(int token) {
             (void)token;
             BOOL woke = settings_refresh_screen_awake_state("iokit.displayStatus");
             (void)settings_refresh_screen_lock_state("iokit.displayStatus");
@@ -2913,6 +3149,8 @@ static void settings_install_screen_awake_observers(void)
                 settings_resume_livewp_after_wake_async("display awake");
                 settings_schedule_themer_quiet_repair_burst("display awake");
                 settings_restart_gravity_motion_if_active("display awake");
+                settings_apply_speculumlite_once_async("display awake");
+                settings_apply_notweafications_once_async("display awake");
             }
         });
         if (status != NOTIFY_STATUS_OK) {
@@ -2921,7 +3159,7 @@ static void settings_install_screen_awake_observers(void)
 
         status = notify_register_dispatch("com.apple.springboard.lockstate",
                                           &g_springboard_lockstate_notify_token,
-                                          dispatch_get_main_queue(), ^(int token) {
+                                          fastQueue, ^(int token) {
             (void)token;
             BOOL changed = settings_refresh_screen_lock_state("springboard.lockstate");
             if (changed) {
@@ -6144,9 +6382,6 @@ static void settings_start_speculumlite_live_loop(void)
 
     dispatch_async(dispatch_get_global_queue(0, 0), ^{
         NSUInteger tick = 0;
-        
-        // START AT 1: This ensures that the very first successful tick 
-        // triggers the block that updates the UI queue to active.
         NSUInteger failures = 1; 
         
         uint64_t nextTickUS = settings_now_us();
@@ -6187,7 +6422,6 @@ static void settings_start_speculumlite_live_loop(void)
                     printf("[SETTINGS] Speculum Lite resumed after screen unlock/wake\n");
                 }
 
-                uint64_t tickStartUS = settings_now_us();
                 bool ok = false;
 
                 speculum_update_media_cache();
@@ -6209,7 +6443,7 @@ static void settings_start_speculumlite_live_loop(void)
                 // failure handling logic
                 if (ok) {
                     if (failures > 0) {
-                        failures = 0; // reset flag
+                        failures = 0;
                         
                         settings_mark_tweak_applied(kSettingsSpeculumLiteEnabled, YES);
                         settings_notify_package_queue_changed_async();
@@ -6645,7 +6879,28 @@ static void settings_apply_speculumlite_once_async(const char *reason)
 {
     if (!settings_device_supported()) return;
     if (settings_cleanup_in_progress()) return;
-    if (g_speculumlite_live_running) return;
+    if (g_speculumlite_live_running) {
+        if (reason && strstr(reason, "awake") != NULL) {
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+                for (int i = 0; i < 10; i++) {
+                    if (settings_cleanup_in_progress()) break;
+                    if (!settings_speculumlite_can_poll_springboard()) break;
+
+                    bool ok = false;
+                    @synchronized (settings_rc_lock()) {
+                        if (g_springboard_rc_ready) {
+                            ok = settings_speculumlite_apply();
+                        }
+                    }
+                    if (ok) {
+                        break;
+                    }
+                    usleep(100000); 
+                }
+            });
+        }
+        return;
+    }
 
     NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
     if (![d boolForKey:kSettingsSpeculumLiteEnabled] || !g_springboard_rc_ready) return;
@@ -10104,7 +10359,9 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
 
 - (NSArray<NSDictionary *> *)notweaficationsRows
 {
-    return @[];
+    return @[
+        @{ @"kind": @"button", @"action": @"openNotweaficationsEditor", @"title": @"Customize Colors" }
+    ];
 }
 
 - (NSArray<NSDictionary *> *)speculumLiteRows
@@ -14906,6 +15163,18 @@ void arsenic_present_contact(UIViewController *host)
         }
         return;
     }
+
+    if (indexPath.section == SectionNotweafications) {
+        NSDictionary *row = [self rowsForSection:indexPath.section][indexPath.row];
+        if (![row[@"kind"] isEqualToString:@"button"]) return;
+        
+        NSString *action = row[@"action"];
+        if ([action isEqualToString:@"openNotweaficationsEditor"]) {
+            NotweaficationsEditorController *editor = [[NotweaficationsEditorController alloc] initWithStyle:UITableViewStyleInsetGrouped];
+            [self.navigationController pushViewController:editor animated:YES];
+        }
+        return;
+    }
 }
 
 - (NSArray<NSDictionary *> *)repoTweaksRows {
@@ -14964,6 +15233,12 @@ void arsenic_present_contact(UIViewController *host)
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)openNotweaficationsEditor
+{
+    NotweaficationsEditorController *editorVC = [[NotweaficationsEditorController alloc] initWithStyle:UITableViewStyleInsetGrouped];
+    [self.navigationController pushViewController:editorVC animated:YES];
 }
 
 @end

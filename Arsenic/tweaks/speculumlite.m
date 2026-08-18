@@ -21,6 +21,11 @@ static char gLastStrings[kSpeculumMaxWidgets][256] = {0};
 static char gLastFontPaths[kSpeculumMaxWidgets][512] = {0};
 
 static int gTickCount = 0;
+static NSTimer *gSpecLiveTimer = nil;
+static SpeculumLiteConfig gCurrentConfig;
+
+static bool gSpecIsFullyInitialized = false;
+static SpeculumLiteConfig gLastAppliedConfig;
 
 // ==========================================
 // App-Side Native String Formatter
@@ -269,6 +274,21 @@ static bool spec_locate_targets(void) {
 }
 
 // ==========================================
+// Timer
+// ==========================================
+static void speculumlite_native_tick(NSTimer *timer) {
+    //stops the timer to save battery
+    if (!spec_locate_targets()) {
+        [gSpecLiveTimer invalidate];
+        gSpecLiveTimer = nil;
+        return;
+    }
+    speculumlite_apply_in_session(gCurrentConfig);
+}
+
+
+
+// ==========================================
 // Tweak Engine Core
 // ==========================================
 bool speculumlite_apply_in_session(SpeculumLiteConfig config) {
@@ -276,226 +296,153 @@ bool speculumlite_apply_in_session(SpeculumLiteConfig config) {
 
     gTickCount++;
     if (!spec_locate_targets()) return false;
-
-    // hide native elements
-    if (config.hideDate && gSpecDateView) {
-        r_msg2_main(gSpecDateView, "setHidden:", 1, 0, 0, 0);
-    }
-
-    if (config.hideTime && gSpecTimeView) {
-        uint64_t timeSubviews = r_msg2_main(gSpecTimeView, "subviews", 0, 0, 0, 0);
-        uint64_t count = r_msg2_main(timeSubviews, "count", 0, 0, 0, 0);
-
-        for (uint64_t i = 0; i < count; i++) {
-            uint64_t sub = r_msg2_main(timeSubviews, "objectAtIndex:", i, 0, 0, 0);
-
-            bool isOurs = false;
-            for (int w = 0; w < config.widgetCount; w++) {
-                if (sub == gSpecLabels[w]) {
-                    isOurs = true;
-                    break;
+    bool configChanged = memcmp(&config, &gLastAppliedConfig, sizeof(SpeculumLiteConfig)) != 0;
+    if (configChanged || !gSpecIsFullyInitialized) {
+        
+        // ghost cleanup
+        uint64_t containerSubviews = r_msg2_main(gSpecContainerView, "subviews", 0, 0, 0, 0);
+        if (r_is_objc_ptr(containerSubviews)) {
+            uint64_t subCount = r_msg2_main(containerSubviews, "count", 0, 0, 0, 0);
+            for (uint64_t i = 0; i < subCount; i++) {
+                uint64_t sub = r_msg2_main(containerSubviews, "objectAtIndex:", i, 0, 0, 0);
+                uint64_t tag = r_msg2_main(sub, "tag", 0, 0, 0, 0);
+                if (tag == 893475) {
+                    bool isOurs = false;
+                    for (int w = 0; w < kSpeculumMaxWidgets; w++) {
+                        if (gSpecLabels[w] == sub) { isOurs = true; break; }
+                    }
+                    if (!isOurs) r_msg2_main(sub, "removeFromSuperview", 0, 0, 0, 0);
                 }
             }
+        }
 
-            if (!isOurs) {
-                r_msg2_main(sub, "setHidden:", 1, 0, 0, 0);
+        // hide native elements (if toggled from settings)
+        if (config.hideDate && gSpecDateView) {
+            r_msg2_main(gSpecDateView, "setHidden:", 1, 0, 0, 0);
+        }
+        if (config.hideTime && gSpecTimeView) {
+            uint64_t timeSubviews = r_msg2_main(gSpecTimeView, "subviews", 0, 0, 0, 0);
+            uint64_t count = r_msg2_main(timeSubviews, "count", 0, 0, 0, 0);
+            for (uint64_t i = 0; i < count; i++) {
+                uint64_t sub = r_msg2_main(timeSubviews, "objectAtIndex:", i, 0, 0, 0);
+                bool isOurs = false;
+                for (int w = 0; w < config.widgetCount; w++) {
+                    if (sub == gSpecLabels[w]) { isOurs = true; break; }
+                }
+                if (!isOurs) r_msg2_main(sub, "setHidden:", 1, 0, 0, 0);
             }
         }
+        
+        gLastAppliedConfig = config;
+        gSpecIsFullyInitialized = true;
     }
 
     const double screenWidth = [UIScreen mainScreen].bounds.size.width;
     const double screenHeight = [UIScreen mainScreen].bounds.size.height;
     const double screenScale = [UIScreen mainScreen].scale;
-    const double baseFontSize = 20.0; // if you're trying to implement this tweak into your own fork make sure not to change this value, otherwise it won't match the settings editor.
+    const double baseFontSize = 20.0;
 
-    // Widget Processing Loop
     for (int i = 0; i < config.widgetCount && i < kSpeculumMaxWidgets; i++) {
         SpeculumWidget widget = config.widgets[i];
         bool created = false;
 
-        // 1. Allocate & inject only once.
+        // init
         if (!gSpecLabels[i]) {
-            uint64_t label = r_msg2_main(
-                r_msg2_main(r_class("UILabel"), "alloc", 0, 0, 0, 0),
-                "init",
-                0, 0, 0, 0
-            );
-
-            if (!r_is_objc_ptr(label)) {
-                continue;
-            }
-
-            r_msg2_main(label, "setTextAlignment:", 1, 0, 0, 0); // Center
+            uint64_t label = r_msg2_main(r_msg2_main(r_class("UILabel"), "alloc", 0, 0, 0, 0), "init", 0, 0, 0, 0);
+            if (!r_is_objc_ptr(label)) continue;
+            
+            r_msg2_main(label, "setTextAlignment:", 1, 0, 0, 0);
+            r_msg2_main(label, "setTag:", 893475, 0, 0, 0);
             r_msg2_main(gSpecContainerView, "addSubview:", label, 0, 0, 0);
-
             gSpecLabels[i] = label;
             created = true;
         }
 
         uint64_t label = gSpecLabels[i];
 
-        // 2. Font
-        NSString *fontPath = [NSString stringWithUTF8String:widget.fontPath];
-        bool wantsCustomFont = fontPath.length > 0;
-        bool fontPathChanged = strcmp(gLastFontPaths[i], widget.fontPath) != 0;
-        bool customFontNeedsRetry = wantsCustomFont && gLastFontPaths[i][0] == '\0';
-        bool fontChanged = created || fontPathChanged || customFontNeedsRetry;
-
-        if (fontChanged) {
+        if (configChanged || created) {
+            // font
+            NSString *fontPath = [NSString stringWithUTF8String:widget.fontPath];
             uint64_t font = 0;
-            bool customFontResolved = false;
-
-            if (wantsCustomFont) {
+            if (fontPath.length > 0) {
                 uint64_t nsPath = r_nsstr_retained(widget.fontPath);
                 uint64_t url = r_msg2_main(r_class("NSURL"), "fileURLWithPath:", nsPath, 0, 0, 0);
                 r_msg2_main(nsPath, "release", 0, 0, 0, 0);
-
                 if (r_is_objc_ptr(url)) {
-                    r_dlsym_call(
-                        R_TIMEOUT,
-                        "CTFontManagerRegisterFontsForURL",
-                        url, 1, 0, 0, 0, 0, 0, 0
-                    );
+                    r_dlsym_call(R_TIMEOUT, "CTFontManagerRegisterFontsForURL", url, 1, 0, 0, 0, 0, 0, 0);
                 }
-
                 NSString *psName = spec_extract_postscript_name(fontPath);
                 if (psName.length > 0) {
                     uint64_t nsFontName = r_nsstr_retained(psName.UTF8String);
-                    font = r_msg2_main_raw(
-                        r_class("UIFont"),
-                        "fontWithName:size:",
-                        &nsFontName, sizeof(nsFontName),
-                        &baseFontSize, sizeof(baseFontSize),
-                        NULL, 0,
-                        NULL, 0
-                    );
+                    font = r_msg2_main_raw(r_class("UIFont"), "fontWithName:size:", &nsFontName, sizeof(nsFontName), &baseFontSize, sizeof(baseFontSize), NULL, 0, NULL, 0);
                     r_msg2_main(nsFontName, "release", 0, 0, 0, 0);
-                    customFontResolved = r_is_objc_ptr(font);
                 }
             }
-
             if (!r_is_objc_ptr(font)) {
-                font = r_msg2_main_raw(
-                    r_class("UIFont"),
-                    "boldSystemFontOfSize:",
-                    &baseFontSize, sizeof(baseFontSize),
-                    NULL, 0,
-                    NULL, 0,
-                    NULL, 0
-                );
+                font = r_msg2_main_raw(r_class("UIFont"), "boldSystemFontOfSize:", &baseFontSize, sizeof(baseFontSize), NULL, 0, NULL, 0, NULL, 0);
             }
+            if (r_is_objc_ptr(font)) r_msg2_main(label, "setFont:", font, 0, 0, 0);
 
-            if (r_is_objc_ptr(font)) {
-                r_msg2_main(label, "setFont:", font, 0, 0, 0);
-            }
+            // color
+            NSString *hexColor = [NSString stringWithUTF8String:widget.hexColor];
+            double red = 1.0, green = 1.0, blue = 1.0, alpha = 1.0;
+            if (hexColor.length > 0) spec_hex_to_rgb(hexColor, &red, &green, &blue);
+            uint64_t color = r_msg2_main_raw(r_class("UIColor"), "colorWithRed:green:blue:alpha:", &red, sizeof(red), &green, sizeof(green), &blue, sizeof(blue), &alpha, sizeof(alpha));
+            if (r_is_objc_ptr(color)) r_msg2_main(label, "setTextColor:", color, 0, 0, 0);
 
-            if (!wantsCustomFont || customFontResolved) {
-                snprintf(gLastFontPaths[i], sizeof(gLastFontPaths[i]), "%s", widget.fontPath);
-            } else {
-                gLastFontPaths[i][0] = '\0';
-            }
+            // transform and scale
+            double widgetScale = widget.scaleSize > 0.0 ? widget.scaleSize : 1.0;
+            double transform[6] = { widgetScale, 0.0, 0.0, widgetScale, 0.0, 0.0 };
+            r_msg2_main_raw(label, "setTransform:", transform, sizeof(transform), NULL, 0, NULL, 0, NULL, 0);
+
+            double renderScale = screenScale * (widgetScale > 1.0 ? widgetScale : 1.0);
+            uint64_t layer = r_msg2_main(label, "layer", 0, 0, 0, 0);
+            r_msg2_main_raw(layer, "setContentsScale:", &renderScale, sizeof(renderScale), NULL, 0, NULL, 0, NULL, 0);
         }
 
-        // 3. Color
-        NSString *hexColor = [NSString stringWithUTF8String:widget.hexColor];
-        double red = 1.0, green = 1.0, blue = 1.0, alpha = 1.0;
-        if (hexColor.length > 0) {
-            spec_hex_to_rgb(hexColor, &red, &green, &blue);
-        }
-
-        uint64_t color = r_msg2_main_raw(
-            r_class("UIColor"),
-            "colorWithRed:green:blue:alpha:",
-            &red, sizeof(red),
-            &green, sizeof(green),
-            &blue, sizeof(blue),
-            &alpha, sizeof(alpha)
-        );
-        if (r_is_objc_ptr(color)) {
-            r_msg2_main(label, "setTextColor:", color, 0, 0, 0);
-        }
-
-        // 4. Scale
-        double widgetScale = widget.scaleSize;
-        if (widgetScale <= 0.0) {
-            widgetScale = 1.0;
-        }
-
-        double transform[6] = {
-            widgetScale, 0.0,
-            0.0, widgetScale,
-            0.0, 0.0
-        };
-        r_msg2_main_raw(
-            label,
-            "setTransform:",
-            transform, sizeof(transform),
-            NULL, 0,
-            NULL, 0,
-            NULL, 0
-        );
-
-        double renderScale = screenScale * (widgetScale > 1.0 ? widgetScale : 1.0);
-        uint64_t layer = r_msg2_main(label, "layer", 0, 0, 0, 0);
-        r_msg2_main_raw(
-            layer,
-            "setContentsScale:",
-            &renderScale, sizeof(renderScale),
-            NULL, 0,
-            NULL, 0,
-            NULL, 0
-        );
-
-        // 5. Text
+        // fast path for wake/unlock
         NSString *template = [NSString stringWithUTF8String:widget.textTemplate];
         NSString *displayString = spec_format_text(template);
-        const char *displayUTF8 = displayString.UTF8String;
-        if (!displayUTF8) {
-            displayUTF8 = "";
-        }
+        const char *displayUTF8 = displayString.UTF8String ?: "";
 
         bool textChanged = strcmp(displayUTF8, gLastStrings[i]) != 0;
-        if (textChanged) {
+        
+        if (textChanged || created || configChanged) {
             uint64_t nsText = r_nsstr_retained(displayUTF8);
             r_msg2_main(label, "setText:", nsText, 0, 0, 0);
             r_msg2_main(nsText, "release", 0, 0, 0, 0);
             snprintf(gLastStrings[i], sizeof(gLastStrings[i]), "%s", displayUTF8);
-        }
 
-        if (created || fontChanged || textChanged) {
             r_msg2_main(label, "sizeToFit", 0, 0, 0, 0);
-        }
 
-        // 6. Position
-        struct { double x, y; } center = {
-            screenWidth * widget.posX,
-            screenHeight * widget.posY
-        };
-        r_msg2_main_raw(
-            label,
-            "setCenter:",
-            &center, sizeof(center),
-            NULL, 0,
-            NULL, 0,
-            NULL, 0
-        );
+            struct { double x, y; } center = {
+                screenWidth * widget.posX,
+                screenHeight * widget.posY
+            };
+            r_msg2_main_raw(label, "setCenter:", &center, sizeof(center), NULL, 0, NULL, 0, NULL, 0);
+        }
     }
-
-    // Cleanup any removed widgets.
-    for (int i = config.widgetCount; i < kSpeculumMaxWidgets; i++) {
-        if (gSpecLabels[i]) {
-            r_msg2_main(gSpecLabels[i], "removeFromSuperview", 0, 0, 0, 0);
-            gSpecLabels[i] = 0;
+    if (configChanged || !gSpecIsFullyInitialized) {
+        for (int i = config.widgetCount; i < kSpeculumMaxWidgets; i++) {
+            if (gSpecLabels[i]) {
+                r_msg2_main(gSpecLabels[i], "removeFromSuperview", 0, 0, 0, 0);
+                gSpecLabels[i] = 0;
+            }
+            gLastStrings[i][0] = '\0';
+            gLastFontPaths[i][0] = '\0';
         }
-
-        gLastStrings[i][0] = '\0';
-        gLastFontPaths[i][0] = '\0';
     }
 
     return true;
 }
 
 bool speculumlite_stop_in_session(void) {
+    gSpecIsFullyInitialized = false;
+    memset(&gLastAppliedConfig, 0, sizeof(gLastAppliedConfig));
+    if (gSpecLiveTimer) {
+        [gSpecLiveTimer invalidate];
+        gSpecLiveTimer = nil;
+    }
     uint32_t oldSettle = r_settle_us(1000);
     
     if (gSpecDateView) r_msg2_main(gSpecDateView, "setHidden:", 0, 0, 0, 0);
@@ -531,6 +478,8 @@ bool speculumlite_stop_in_session(void) {
 }
 
 void speculumlite_forget_remote_state(void) {
+    gSpecIsFullyInitialized = false;
+    memset(&gLastAppliedConfig, 0, sizeof(gLastAppliedConfig));
     gSpecContainerView = 0;
     gSpecTimeView = 0;
     gSpecDateView = 0;

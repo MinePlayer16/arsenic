@@ -71,7 +71,6 @@ static size_t nw_snapshot_cells_dictionary(uint64_t cellsDict,
                                            size_t capacity) {
     if (!r_is_objc_ptr(cellsDict) || !entries || capacity == 0) return 0;
 
-    
      // first it copies it to springboard's main thread, NSDictionary is immutable.
     uint64_t stableDict = r_msg2_main(cellsDict, "copy", 0, 0, 0, 0);
     if (!r_is_objc_ptr(stableDict)) return 0;
@@ -82,24 +81,15 @@ static size_t nw_snapshot_cells_dictionary(uint64_t cellsDict,
     uint64_t *localKeys = NULL;
     uint64_t *localValues = NULL;
 
-    uint64_t count = r_dlsym_call(R_TIMEOUT,
-                                  "CFDictionaryGetCount",
-                                  stableDict, 0, 0, 0, 0, 0, 0, 0);
+    uint64_t count = r_msg2_main(stableDict, "count", 0, 0, 0, 0);
     if (count == 0 || count > capacity) goto cleanup;
 
     uint64_t bytes = count * sizeof(uint64_t);
-    remoteKeys = r_dlsym_call(R_TIMEOUT,
-                              "malloc",
-                              bytes, 0, 0, 0, 0, 0, 0, 0);
-    remoteValues = r_dlsym_call(R_TIMEOUT,
-                                "malloc",
-                                bytes, 0, 0, 0, 0, 0, 0, 0);
+    remoteKeys = r_dlsym_call(R_TIMEOUT, "malloc", bytes, 0, 0, 0, 0, 0, 0, 0);
+    remoteValues = r_dlsym_call(R_TIMEOUT, "malloc", bytes, 0, 0, 0, 0, 0, 0, 0);
     if (!remoteKeys || !remoteValues) goto cleanup;
 
-    r_dlsym_call(R_TIMEOUT,
-                 "CFDictionaryGetKeysAndValues",
-                 stableDict, remoteKeys, remoteValues,
-                 0, 0, 0, 0, 0);
+    r_msg2_main(stableDict, "getObjects:andKeys:count:", remoteValues, remoteKeys, count, 0);
 
     localKeys = calloc((size_t)count, sizeof(uint64_t));
     localValues = calloc((size_t)count, sizeof(uint64_t));
@@ -157,33 +147,29 @@ static uint64_t notweafications_color_for_bundle(const char *bundle,
     double r = 1.0, g = 1.0, b = 1.0, a = 1.0;
 
     if (bundle && bundle[0]) {
-        if (strcmp(bundle, "com.reddit.Reddit") == 0) {
-            r = 1.0; g = 0.27; b = 0.0;
-        } else if (strcmp(bundle, "net.whatsapp.WhatsApp") == 0) {
-            r = 0.15; g = 0.83; b = 0.30;
-        } else if (strcmp(bundle, "com.google.ios.youtube") == 0) {
-            r = 1.0; g = 0.0; b = 0.0;
-        } else if (strcmp(bundle, "ph.telegra.Telegraph") == 0) {
-            r = 0.17; g = 0.65; b = 0.92;
-        } else if (strcmp(bundle, "com.burbn.instagram") == 0) { 
-            r = 0.88; g = 0.19; b = 0.43;
-        } else if (strcmp(bundle, "com.apple.MobileSMS") == 0) { 
-            r = 0.20; g = 0.85; b = 0.38;
-        } else if (strcmp(bundle, "com.atebits.Tweetie2") == 0) { 
-            r = 0.0; g = 0.0; b = 0.0;
-        } else if (strcmp(bundle, "com.apple.mobilemail") == 0) { 
-            r = 0.0; g = 0.48; b = 1.0;
-        } else if (strcmp(bundle, "com.apple.Music") == 0) { 
-            r = 0.98; g = 0.15; b = 0.32;
-        } else if (strcmp(bundle, "com.apple.mobilecal") == 0) {
-            r = 1.0; g = 0.23; b = 0.19;
+        NSString *bundleStr = [NSString stringWithUTF8String:bundle];
+        NSArray *apps = [[NSUserDefaults standardUserDefaults] arrayForKey:@"NotweaficationsAppColors"];
+        
+        for (NSDictionary *app in apps) {
+            if ([app[@"bundleID"] isEqualToString:bundleStr]) {
+                NSString *hex = app[@"hexColor"];
+                if (hex.length > 0) {
+                    // hex to rgb color
+                    NSString *cleanHex = [hex stringByReplacingOccurrencesOfString:@"#" withString:@""];
+                    unsigned int rgb = 0;
+                    NSScanner *scanner = [NSScanner scannerWithString:cleanHex];
+                    [scanner scanHexInt:&rgb];
+                    
+                    r = ((rgb >> 16) & 0xFF) / 255.0;
+                    g = ((rgb >> 8) & 0xFF) / 255.0;
+                    b = (rgb & 0xFF) / 255.0;
+                    break;
+                }
+            }
         }
     }
 
-
-        // bright background -> force light appearance -> dark semantic text
-        // dark background   -> force dark appearance  -> light semantic text
-
+    // calculates brightness for contrast
     double brightness = (0.299 * r) + (0.587 * g) + (0.114 * b);
     if (outDarkBackground) {
         *outDarkBackground = brightness < 0.45;
