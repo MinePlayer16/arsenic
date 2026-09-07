@@ -6,6 +6,8 @@
 #import "SettingsViewController.h"
 #import "VPhoneDebug.h"
 #import "kexploit/kexploit_opa334.h"
+#import "kexploit/offsets.h"
+#import "kexploit/krw.h"
 #import "tweaks/sbcustomizer.h"
 #import "tweaks/powercuff.h"
 #import "tweaks/statbar.h"
@@ -30,6 +32,7 @@
 #import "tweaks/magsafe_tweak.h"
 #import "tweaks/notweafications.h"
 #import "tweaks/speculumlite.h"
+#import "tweaks/actionswitch.h"
 #import <CoreMotion/CoreMotion.h>
 #import <CoreText/CoreText.h>
 #import <dlfcn.h>
@@ -40,6 +43,8 @@
 #import "TaskRop/RemoteCall.h"
 #import "kexploit/kutils.h"
 #import "kexploit/persistence.h"
+#import "kexploit/machine_info.h"
+#import "tweaks/remote_objc.h"
 #import "installer/CYIconBadge.h"
 #import "installer/InstallProgressViewController.h"
 #import "installer/Package.h"
@@ -200,6 +205,289 @@ static NSArray<NSDictionary *> *settings_repotweaks_tweaks_for_url(NSString *rep
     return out;
 }
 
+// ==========================================
+// SPECULUM LITE: PRESETS MANAGER
+// ==========================================
+
+static NSString * const kSpeculumLitePresetsKey = @"SpeculumLiteSavedPresets";
+
+@interface SpeculumPresetCell : UITableViewCell
+@property (nonatomic, strong) UIView *miniCanvas;
+@property (nonatomic, strong) UILabel *nameLabel;
+- (void)configureWithPreset:(NSDictionary *)preset;
+@end
+
+@implementation SpeculumPresetCell
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (self) {
+        self.miniCanvas = [[UIView alloc] init];
+        self.miniCanvas.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
+        self.miniCanvas.layer.cornerRadius = 8;
+        self.miniCanvas.layer.masksToBounds = YES;
+        self.miniCanvas.layer.borderWidth = 1;
+        self.miniCanvas.layer.borderColor = [UIColor darkGrayColor].CGColor;
+        [self.contentView addSubview:self.miniCanvas];
+
+        self.nameLabel = [[UILabel alloc] init];
+        self.nameLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+        [self.contentView addSubview:self.nameLabel];
+    }
+    return self;
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    
+    double screenW = [UIScreen mainScreen].bounds.size.width;
+    double screenH = [UIScreen mainScreen].bounds.size.height;
+    
+    CGFloat canvasW = 60.0;
+    CGFloat canvasH = canvasW * (screenH / screenW);
+    
+    self.miniCanvas.frame = CGRectMake(15, (self.contentView.bounds.size.height - canvasH) / 2.0, canvasW, canvasH);
+    self.nameLabel.frame = CGRectMake(CGRectGetMaxX(self.miniCanvas.frame) + 15, 0, self.contentView.bounds.size.width - canvasW - 45, self.contentView.bounds.size.height);
+}
+
+- (NSString *)previewTextForTemplate:(NSString *)template {
+    if (template.length == 0) return @"";
+    
+    NSMutableString *result = [template mutableCopy];
+    UIDevice *device = [UIDevice currentDevice];
+    
+    // system and hardware pattern tags
+    if ([result containsString:@"{battery}"]) {
+        device.batteryMonitoringEnabled = YES;
+        int bat = (int)(device.batteryLevel * 100.0f);
+        [result replaceOccurrencesOfString:@"{battery}" withString:[NSString stringWithFormat:@"%d", bat] options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{battery_status}"]) {
+        device.batteryMonitoringEnabled = YES;
+        NSString *status = @"Unplugged";
+        if (device.batteryState == UIDeviceBatteryStateCharging) status = @"Charging";
+        else if (device.batteryState == UIDeviceBatteryStateFull) status = @"Full";
+        [result replaceOccurrencesOfString:@"{battery_status}" withString:status options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{device_name}"]) {
+        [result replaceOccurrencesOfString:@"{device_name}" withString:device.name options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{storage_free}"]) {
+        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfFileSystemForPath:NSHomeDirectory() error:nil];
+        if (attrs) {
+            int64_t freeBytes = [attrs[NSFileSystemFreeSize] longLongValue];
+            double freeGB = freeBytes / (1024.0 * 1024.0 * 1024.0);
+            [result replaceOccurrencesOfString:@"{storage_free}" withString:[NSString stringWithFormat:@"%.1f GB", freeGB] options:0 range:NSMakeRange(0, result.length)];
+        }
+    }
+    
+    if ([result containsString:@"{uptime}"]) {
+        NSTimeInterval uptime = [[NSProcessInfo processInfo] systemUptime];
+        int days = (int)(uptime / 86400);
+        int hours = (int)((uptime - (days * 86400)) / 3600);
+        int minutes = (int)((uptime - (days * 86400) - (hours * 3600)) / 60);
+        
+        NSMutableString *upStr = [NSMutableString string];
+        if (days > 0) [upStr appendFormat:@"%dd ", days];
+        if (hours > 0 || days > 0) [upStr appendFormat:@"%dh ", hours];
+        [upStr appendFormat:@"%dm", minutes];
+        [result replaceOccurrencesOfString:@"{uptime}" withString:upStr options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{ram_free}"]) {
+        mach_port_t host_port = mach_host_self();
+        mach_msg_type_number_t host_size = sizeof(vm_statistics_data_t) / sizeof(integer_t);
+        vm_size_t pagesize;
+        vm_statistics_data_t vm_stat;
+        
+        host_page_size(host_port, &pagesize);
+        if (host_statistics(host_port, HOST_VM_INFO, (host_info_t)&vm_stat, &host_size) == KERN_SUCCESS) {
+            double freeMem = ((vm_stat.free_count + vm_stat.inactive_count) * pagesize) / (1024.0 * 1024.0);
+            [result replaceOccurrencesOfString:@"{ram_free}" withString:[NSString stringWithFormat:@"%.0f MB", freeMem] options:0 range:NSMakeRange(0, result.length)];
+        }
+    }
+    
+    // weather and media pattern tags
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    
+    if ([result containsString:@"{temp}"]) {
+        NSString *temp = [defaults stringForKey:@"SpeculumLiteWeatherTemp"] ?: @"--";
+        [result replaceOccurrencesOfString:@"{temp}" withString:temp options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{weather}"]) {
+        NSString *cond = [defaults stringForKey:@"SpeculumLiteWeatherCond"] ?: @"Unknown";
+        [result replaceOccurrencesOfString:@"{weather}" withString:cond options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    if ([result containsString:@"{song}"]) {
+        NSString *song = [defaults stringForKey:@"SpeculumLiteMediaSong"] ?: @"Not Playing";
+        [result replaceOccurrencesOfString:@"{song}" withString:song options:0 range:NSMakeRange(0, result.length)];
+    }
+
+    if ([result containsString:@"{weather_icon}"]) {
+        NSString *icon = [defaults stringForKey:@"SpeculumLiteWeatherIcon"] ?: @"--";
+        [result replaceOccurrencesOfString:@"{weather_icon}" withString:icon options:0 range:NSMakeRange(0, result.length)];
+    }
+    
+    // date and time
+    NSError *error = nil;
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"\\{(.*?)\\}" options:0 error:&error];
+    NSArray *matches = [regex matchesInString:result options:0 range:NSMakeRange(0, result.length)];
+    NSDate *now = [NSDate date];
+    
+    for (NSTextCheckingResult *match in [matches reverseObjectEnumerator]) {
+        NSRange fullRange = match.range;
+        NSRange innerRange = [match rangeAtIndex:1];
+        NSString *format = [result substringWithRange:innerRange];
+        
+        NSDateFormatter *df = [[NSDateFormatter alloc] init];
+        df.dateFormat = format;
+        NSString *dateStr = [df stringFromDate:now];
+        
+        [result replaceCharactersInRange:fullRange withString:dateStr ?: @""];
+    }
+    
+    return result;
+}
+
+- (void)configureWithPreset:(NSDictionary *)preset {
+    self.nameLabel.text = preset[@"name"];
+    
+    for (UIView *v in self.miniCanvas.subviews) {
+        [v removeFromSuperview];
+    }
+    
+    NSArray *widgets = preset[@"widgets"];
+    if (![widgets isKindOfClass:[NSArray class]]) return;
+    
+    double screenW = [UIScreen mainScreen].bounds.size.width;
+    CGFloat canvasW = 60.0;
+    CGFloat ratio = canvasW / screenW; 
+    
+    NSString *docsDir = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    
+    for (NSDictionary *w in widgets) {
+        UILabel *l = [[UILabel alloc] init];
+        
+        NSString *template = w[@"textTemplate"] ?: @"";
+        l.text = [self previewTextForTemplate:template];
+        
+        l.textColor = colorFromHexString(w[@"hexColor"] ?: @"#FFFFFF");
+        l.textAlignment = NSTextAlignmentCenter;
+        
+        CGFloat baseSize = 20.0;
+        CGFloat scale = [w[@"scaleSize"] doubleValue] ?: 1.0;
+        CGFloat previewFontSize = baseSize * scale * ratio;
+        
+        UIFont *resolvedFont = nil;
+        NSString *savedFont = w[@"fontPath"];
+        NSString *fontPath = @"";
+        
+        if (savedFont.length > 0) {
+            fontPath = [docsDir stringByAppendingPathComponent:[savedFont lastPathComponent]];
+        }
+
+        if (fontPath.length > 0 && [[NSFileManager defaultManager] fileExistsAtPath:fontPath]) {
+            NSURL *url = [NSURL fileURLWithPath:fontPath];
+            CTFontManagerRegisterFontsForURL((__bridge CFURLRef)url, kCTFontManagerScopeProcess, NULL);
+
+            CGDataProviderRef provider = CGDataProviderCreateWithFilename(fontPath.UTF8String);
+            if (provider) {
+                CGFontRef cgFont = CGFontCreateWithDataProvider(provider);
+                if (cgFont) {
+                    NSString *psName = (__bridge_transfer NSString *)CGFontCopyPostScriptName(cgFont);
+                    if (psName.length > 0) {
+                        resolvedFont = [UIFont fontWithName:psName size:previewFontSize];
+                    }
+                    CGFontRelease(cgFont);
+                }
+                CGDataProviderRelease(provider);
+            }
+        }
+
+        l.font = resolvedFont ?: [UIFont boldSystemFontOfSize:previewFontSize];
+        [l sizeToFit];
+        
+        CGFloat px = [w[@"posX"] doubleValue] ?: 0.5;
+        CGFloat py = [w[@"posY"] doubleValue] ?: 0.5;
+        
+        [self layoutIfNeeded];
+        l.center = CGPointMake(self.miniCanvas.bounds.size.width * px,
+                               self.miniCanvas.bounds.size.height * py);
+        [self.miniCanvas addSubview:l];
+    }
+}
+@end
+
+
+@interface SpeculumPresetsViewController : UITableViewController
+@property (nonatomic, strong) NSMutableArray *presets;
+@property (nonatomic, copy) void (^onPresetSelected)(NSArray *widgets);
+@end
+
+@implementation SpeculumPresetsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"Saved Designs";
+    self.tableView.rowHeight = 150.0;
+    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    [self loadPresets];
+}
+
+- (void)loadPresets {
+    NSArray *saved = [[NSUserDefaults standardUserDefaults] arrayForKey:kSpeculumLitePresetsKey];
+    self.presets = saved ? [saved mutableCopy] : [NSMutableArray array];
+    [self.tableView reloadData];
+}
+
+- (void)savePresets {
+    [[NSUserDefaults standardUserDefaults] setObject:self.presets forKey:kSpeculumLitePresetsKey];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return self.presets.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    SpeculumPresetCell *cell = [tableView dequeueReusableCellWithIdentifier:@"PresetCell"];
+    if (!cell) {
+        cell = [[SpeculumPresetCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"PresetCell"];
+    }
+    [cell configureWithPreset:self.presets[indexPath.row]];
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    NSDictionary *preset = self.presets[indexPath.row];
+    NSArray *widgets = preset[@"widgets"];
+    
+    if (self.onPresetSelected) {
+        self.onPresetSelected(widgets);
+    }
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    return YES;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (editingStyle == UITableViewCellEditingStyleDelete) {
+        [self.presets removeObjectAtIndex:indexPath.row];
+        [self savePresets];
+        [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
+    }
+}
+@end
+
 static void settings_apply_speculumlite_once_async(const char *reason);
 // ==========================================
 // SPECULUM LITE: WIDGET EDITOR
@@ -253,6 +541,10 @@ static void settings_apply_speculumlite_once_async(const char *reason);
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"Lockscreen Editor";
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Presets" 
+                                                                             style:UIBarButtonItemStylePlain 
+                                                                            target:self 
+                                                                            action:@selector(showPresetsMenu)];
     UIImage *infoIcon = [UIImage systemImageNamed:@"info.circle"];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithImage:infoIcon
                                                                               style:UIBarButtonItemStylePlain 
@@ -752,6 +1044,69 @@ static void settings_apply_speculumlite_once_async(const char *reason);
     [[NSUserDefaults standardUserDefaults] synchronize];
     settings_apply_speculumlite_once_async("Editor Action");
 }
+
+- (void)showPresetsMenu {
+    UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"Design Presets" 
+                                                                message:@"Save your current layout or load an existing design." 
+                                                         preferredStyle:UIAlertControllerStyleActionSheet];
+    
+    [ac addAction:[UIAlertAction actionWithTitle:@"Save Current Design" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        [self promptSavePreset];
+    }]];
+    
+    [ac addAction:[UIAlertAction actionWithTitle:@"Load a Saved Design" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        SpeculumPresetsViewController *vc = [[SpeculumPresetsViewController alloc] init];
+        
+        // selected layout to the editor
+        vc.onPresetSelected = ^(NSArray *widgets) {
+            self.widgets = [[NSMutableArray alloc] init];
+            for (NSDictionary *w in widgets) {
+                [self.widgets addObject:[w mutableCopy]];
+            }
+            [self renderAllWidgets];
+            [self saveState]; // syncs to springboard
+        };
+        
+        [self.navigationController pushViewController:vc animated:YES];
+    }]];
+    
+    [ac addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:ac animated:YES completion:nil];
+}
+
+- (void)promptSavePreset {
+    UIAlertController *ac = [UIAlertController alertControllerWithTitle:@"Save Design" 
+                                                                message:@"Enter a name for this layout:" 
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    
+    [ac addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+        textField.placeholder = @"e.g., Minimal, Centered, Large Clock";
+    }];
+    
+    [ac addAction:[UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        NSString *name = ac.textFields.firstObject.text;
+        if (name.length > 0) {
+            NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+            NSArray *existing = [d arrayForKey:kSpeculumLitePresetsKey];
+            NSMutableArray *presets = existing ? [existing mutableCopy] : [NSMutableArray array];
+            
+            // replace identically named preset if it exists
+            [presets filterUsingPredicate:[NSPredicate predicateWithFormat:@"name != %@", name]];
+            
+            [presets addObject:@{
+                @"name": name,
+                @"widgets": self.widgets
+            }];
+            
+            [d setObject:presets forKey:kSpeculumLitePresetsKey];
+            [d synchronize];
+        }
+    }]];
+    
+    [ac addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:ac animated:YES completion:nil];
+}
+
 @end
 
 
@@ -1636,6 +1991,11 @@ extern int escape_sbx_demo2(void);
 
 @end
 
+NSString * const kSettingsA18ExploitPath   = @"A18ExploitPath";
+NSString * const kSettingsA18Interleave = @"A18Interleave";
+NSString * const kSettingsA18MemoryShaping = @"A18MemoryShaping";
+NSString * const kSettingsA18BoundedSearch = @"A18BoundedSearch";
+NSString * const kSettingsRemoteSettleMode  = @"RemoteSettleMode";
 NSString * const kSettingsAutoRunKexploit    = @"AutoRunKexploit";
 NSString * const kSettingsRunSandboxEscape   = @"RunSandboxEscape";
 NSString * const kSettingsRunPatchSandboxExt = @"RunPatchSandboxExt";
@@ -1839,6 +2199,9 @@ NSString * const kSettingsSpeculumLiteScaleSize = @"SpeculumLiteScaleSize";
 NSString * const kSettingsSpeculumLiteScaleHeight = @"SpeculumLiteScaleHeight";
 NSString * const kSettingsSpeculumLiteOffsetX = @"SpeculumLiteOffsetX";
 NSString * const kSettingsSpeculumLiteOffsetY = @"SpeculumLiteOffsetY";
+
+NSString * const kSettingsActionSwitchEnabled = @"ActionSwitchEnabled";
+NSString * const kSettingsActionSwitchMode    = @"ActionSwitchMode";
 
 // Internal gate for unfinished in-development tweaks. There is no public
 // account gate; beta packages that are ready for testing stay visible.
@@ -2183,6 +2546,11 @@ static bool settings_stop_speculumlite_registered(BOOL springboardWillDie) {
     return speculumlite_stop_in_session();
 }
 
+static bool settings_stop_actionswitch_registered(BOOL springboardWillDie) {
+    (void)springboardWillDie;
+    return actionswitch_stop_in_session();
+}
+
 static void settings_each_springboard_cleanup_entry(void (^block)(const SettingsSpringBoardTweakCleanupEntry *entry))
 {
     if (!block) return;
@@ -2208,6 +2576,7 @@ static void settings_each_springboard_cleanup_entry(void (^block)(const Settings
         { kSettingsMagsafeEnabled, "Magsafe", NULL, settings_stop_magsafe_registered, magsafe_tweak_forget_remote_state, NULL, YES, YES },
         { kSettingsNotweaficationsEnabled, "Notweafications", settings_request_notweafications_stop, settings_stop_notweafications_registered, notweafications_forget_remote_state, settings_notweafications_running, YES, YES },
         { kSettingsSpeculumLiteEnabled, "Speculum Lite", settings_request_speculumlite_stop, settings_stop_speculumlite_registered, speculumlite_forget_remote_state, settings_speculumlite_running, YES, YES },
+        { kSettingsActionSwitchEnabled, "Action Switch", NULL, settings_stop_actionswitch_registered, actionswitch_forget_remote_state, NULL, YES, YES },
         { nil, "Kill All Apps", NULL, NULL, killallapps_forget_remote_state, NULL, NO, NO },
     };
     size_t count = sizeof(entries) / sizeof(entries[0]);
@@ -2287,6 +2656,8 @@ static int g_springboard_lockstate_notify_token = NOTIFY_TOKEN_INVALID;
 static int g_springboard_finished_startup_notify_token = NOTIFY_TOKEN_INVALID;
 static int g_springboard_app_state_notify_token = NOTIFY_TOKEN_INVALID;
 static int g_springboard_frontmost_notify_token = NOTIFY_TOKEN_INVALID;
+static int g_ringer_state_notify_token = NOTIFY_TOKEN_INVALID;
+static uint64_t g_last_flip_ms = 0;
 static const NSInteger kSBCDefaultDockIcons = 4;
 static const NSInteger kSBCDefaultCols = 4;
 static const NSInteger kSBCDefaultRows = 6;
@@ -3177,6 +3548,55 @@ static void settings_install_screen_awake_observers(void)
             g_springboard_lockstate_notify_token = NOTIFY_TOKEN_INVALID;
         }
 
+        status = notify_register_dispatch("com.apple.springboard.ringerstate",
+                                        &g_ringer_state_notify_token,
+                                        fastQueue, ^(int token) {
+            NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+            if (![d boolForKey:kSettingsActionSwitchEnabled]) return;
+            
+            // fetch the mode
+            NSString *mode = [d stringForKey:kSettingsActionSwitchMode];
+            
+            // checks if the segmented control string contains the word "single", then it triggers.
+            BOOL isSingleFlip = mode && [mode localizedCaseInsensitiveContainsString:@"single"];
+            
+            uint64_t now_ms = settings_now_ms();
+            
+            // SINGLE FLIP MODE
+            if (isSingleFlip) {
+                @synchronized (settings_rc_lock()) {
+                    if (g_springboard_rc_ready && !settings_cleanup_in_progress()) {
+                        bool ok = actionswitch_toggle_flashlight();
+                        if (ok == 1)
+                            printf("[SETTINGS] Action Switch toggled! Result: OK\n");
+                        else
+                            printf("[SETTINGS] Action Switch toggled! Result: ERROR\n");
+                    }
+                }
+            } 
+            // DOUBLE FLIP MODE
+            else {
+                if (now_ms - g_last_flip_ms > 0 && now_ms - g_last_flip_ms < 1000) {
+                    g_last_flip_ms = 0; 
+                    
+                    @synchronized (settings_rc_lock()) {
+                        if (g_springboard_rc_ready && !settings_cleanup_in_progress()) {
+                            bool ok = actionswitch_toggle_flashlight();
+                            if (ok == 1)
+                                printf("[SETTINGS] Action Switch toggled! Result: OK\n");
+                            else
+                                printf("[SETTINGS] Action Switch toggled! Result: ERROR\n");
+                        }
+                    }
+                } else {
+                    g_last_flip_ms = now_ms; //first flip detected, waits for the second one
+                }
+            }
+        });
+        if (status != NOTIFY_STATUS_OK) {
+            g_ringer_state_notify_token = NOTIFY_TOKEN_INVALID;
+        }
+
         // Darwin notify fires when SpringBoard finishes its boot/respawn.
         // Either we just launched and SB is fine (cleanup is a no-op against
         // already-zero state) or SB crashed under us and we MUST drop every
@@ -3530,6 +3950,11 @@ BOOL settings_device_supported(void)
     return YES;
 #endif
 
+    // iPhone 17 and newer (A19 / A19 Pro) and the M5 iPad Pro: Memory Integrity
+    // Enforcement blocks the exploit, so refuse up front rather than failing
+    // later with no explanation.
+    if (is_unsupported_new_device()) return NO;
+
     BOOL ios17to18 =
         settings_compare_system_version(@"17.0") != NSOrderedAscending &&
         settings_compare_system_version(@"18.7.1") != NSOrderedDescending;
@@ -3547,6 +3972,11 @@ static NSString *settings_unsupported_message(void)
 #if ARSENIC_VPHONE_DEBUG
     return [NSString stringWithFormat:@"VPhone debug build is bypassing Arsenic's iOS version gate on iOS %@.", version];
 #endif
+    if (is_unsupported_new_device()) {
+        return @"Not supported on this device: Memory Integrity Enforcement "
+                "(iPhone 17 and newer, M5 iPad Pro) blocks the kernel exploit "
+                "this relies on.";
+    }
     return [NSString stringWithFormat:@"Not supported on iOS %@. Supported: iOS/iPadOS 17.0-18.7.1 or 26.0-26.0.1.", version];
 }
 
@@ -3630,6 +4060,21 @@ static BOOL settings_ensure_kexploit(void)
     return YES;
 }
 
+static BOOL settings_device_is_a18_above(void)
+{
+    static BOOL result = NO;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        uint32_t cpuFamily = 0;
+        size_t len = sizeof(cpuFamily);
+        if (sysctlbyname("hw.cpufamily", &cpuFamily, &len, NULL, 0) != 0) return;
+        result = (cpuFamily == CPUFAMILY_ARM_TUPAI ||
+                  cpuFamily == CPUFAMILY_ARM_TAHITI ||
+                  cpuFamily == CPUFAMILY_ARM_DONAN);
+    });
+    return result;
+}
+
 static BOOL settings_nano_load_override_enabled(void)
 {
     if (!settings_device_supported()) return NO;
@@ -3670,6 +4115,7 @@ static BOOL settings_ensure_kexploit_recovery_only(void)
 
 static BOOL settings_ensure_springboard_remote_call_locked(void)
 {
+    r_settle_set_mode((int)[[NSUserDefaults standardUserDefaults] integerForKey:kSettingsRemoteSettleMode]);
     if (g_springboard_rc_ready) {
         printf("[SETTINGS] reusing SpringBoard RemoteCall session\n");
         return YES;
@@ -3859,9 +4305,19 @@ void settings_best_effort_termination_cleanup(const char *reason)
     log_user("[CLEANUP] App exiting (%s) — running last-chance teardown.\n", why);
     printf("[SETTINGS] best-effort termination cleanup requested: %s\n", why);
 
-    if (!settings_has_active_termination_live_tweak()) {
-        printf("[SETTINGS] termination cleanup skipped: no live tweaks active\n");
-        log_user("[CLEANUP] No live tweaks active — nothing to tear down.\n");
+    // A live KRW session must be torn down on exit even with no live tweaks.
+    // This guard used to check only for live tweaks, so the common workflow
+    // — run the chain, apply SpringBoard modifications, close the app —
+    // skipped cleanup entirely. That leaves the two leaked sockets' PCBs on the
+    // raw6 inpcb list with in6p_icmp6filt still pointing at the last kernel
+    // address touched (a SpringBoard thread struct, for SpringBoard work).
+    // icmp6_rip6_input() dereferences that pointer for every inbound ICMPv6
+    // packet, so once the thread dies the kernel reads freed memory: a
+    // use-after-free in the threads zone, hours or days later, with Arsenic
+    // long gone.
+    if (!settings_has_active_termination_live_tweak() && !g_kexploit_done) {
+        printf("[SETTINGS] termination cleanup skipped: no live tweaks and no KRW session\n");
+        log_user("[CLEANUP] No live tweaks and no KRW session — nothing to tear down.\n");
         return;
     }
 
@@ -3878,6 +4334,16 @@ void settings_best_effort_termination_cleanup(const char *reason)
     } @finally {
         __sync_lock_release(&g_settings_actions_running);
     }
+}
+
+// Last-ditch safety net for the kill paths that never reach the cleanup above:
+// jetsam, force-quit, or a crash. Parks the RW PCB's filter at an address that
+// stays mapped, leaving the session otherwise intact and re-armable.
+void settings_park_krw_filter_for_background(void)
+{
+    if (!g_kexploit_done) return;
+    bool parked = kexploit_krw_park_filter_safe();
+    printf("[SETTINGS] background KRW filter park: %d\n", parked);
 }
 
 void settings_destroy_springboard_remote_call_sync(void)
@@ -4386,8 +4852,11 @@ static bool settings_dark_tweaks_result_all_ok(SettingsDarkTweaksResult result)
 
 static SettingsDarkTweaksResult settings_apply_dark_tweaks_from_defaults_locked(NSUserDefaults *d)
 {
-    NSInteger iosMajor = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion;
-    BOOL disableAppLibrary = [d boolForKey:kSettingsDSDisableAppLibrary] && iosMajor != 17;
+    // The iOS 17 gate is lifted. darksword_tweaks.m carries a complete iOS 17
+    // "singular controller" path that was never reachable from here, so it has
+    // never actually been exercised on a device. It is enabled to be tested;
+    // if it does not work the tweak reports failure rather than misbehaving.
+    BOOL disableAppLibrary = [d boolForKey:kSettingsDSDisableAppLibrary];
     BOOL disableIconFlyIn = [d boolForKey:kSettingsDSDisableIconFlyIn];
     BOOL zeroWakeAnimation = [d boolForKey:kSettingsDSZeroWakeAnimation];
     BOOL zeroBacklightFade = [d boolForKey:kSettingsDSZeroBacklightFade];
@@ -7172,6 +7641,10 @@ static BOOL settings_key_is_speculumlite(NSString *key) {
            [key isEqualToString:kSettingsSpeculumLiteOffsetY];
 }
 
+static BOOL settings_key_is_actionswitch(NSString *key) {
+    return [key isEqualToString:kSettingsActionSwitchEnabled];
+}
+
 static BOOL settings_key_is_typebanner(NSString *key)
 {
     return [key isEqualToString:kSettingsTypeBannerEnabled];
@@ -8262,6 +8735,32 @@ static void settings_schedule_live_apply_for_key(NSString *key)
         }
         return;
     }
+
+
+    if (settings_key_is_actionswitch(key)) {
+        if ([d boolForKey:kSettingsActionSwitchEnabled] && g_springboard_rc_ready) {
+            dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                @synchronized (settings_rc_lock()) {
+                    if (settings_cleanup_in_progress() || ![d boolForKey:kSettingsActionSwitchEnabled] || !g_springboard_rc_ready) return;
+                    settings_mark_tweak_applied(kSettingsActionSwitchEnabled, YES);
+                }
+                settings_notify_package_queue_changed_async();
+            });
+        } else if (![d boolForKey:kSettingsActionSwitchEnabled]) {
+            settings_mark_tweak_applied(kSettingsActionSwitchEnabled, NO);
+            settings_notify_package_queue_changed_async();
+            if (g_springboard_rc_ready) {
+                dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                    @synchronized (settings_rc_lock()) {
+                       if (g_springboard_rc_ready && ![d boolForKey:kSettingsActionSwitchEnabled]) {
+                            settings_stop_actionswitch_registered(NO);
+                        }
+                    }
+                });
+            }
+        }
+        return;
+    }
     
 
     if (settings_key_is_gravitylite(key)) {
@@ -8354,6 +8853,34 @@ void settings_register_defaults(void)
 {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     [defaults registerDefaults:@{
+        // pe_v1 is the default. It has a measured ~57%% A18 acquire rate
+        // (4/7 on iPhone16,2 / iOS 18.5); pe_v2 has never acquired on A18 in
+        // testing — its confirm-read race cannot win within the safe number of
+        // OOB attempts, so it always aborts cleanly without finishing. pe_v2's
+        // clean-abort safety and its failure to acquire are the same property,
+        // so it stays the fallback until that changes. Must be the default
+        // because reinstalling a sideloaded build wipes NSUserDefaults.
+        kSettingsA18ExploitPath:     @1,
+        // Off by default: baseline bulk-spray + forward-scan is the proven pe_v1
+        // path (~4/7). Interleave+reverse-scan (approach A) pins the find to the
+        // mapping tail but has not measured a better panic rate, so it is opt-in.
+        kSettingsA18Interleave:      @NO,
+        // A18 memory shaping mode: 0 = off (standard geometry, 1 GB window, no
+        // pin), 1 = dynamic (pin ~75% of live jetsam headroom, 4 MB window),
+        // 2 = fixed 3 GB. Default 2 -- this is the 1.5.5 geometry, which field
+        // data shows is markedly more reliable on A18/M4 (fewer aperture-panic
+        // reboots) than dynamic. Dynamic shipped as the 1.5.7 default and cut
+        // the success rate roughly in half on the devices we heard back from.
+        // A one-time migration below (settings_register_defaults) moves anyone
+        // still on dynamic -- including a 1.5.6 @YES that reads back as 1 -- to
+        // 3 GB, so updaters get the 1.5.5 behaviour too, not just fresh installs.
+        kSettingsA18MemoryShaping:   @2,
+        // Default OFF = 1.5.5 behaviour: pe_v1 grinds until it acquires. On caps
+        // the search at 4 passes and returns a clean retry instead of grinding,
+        // which can otherwise end in an aperture panic on a device that never
+        // lands the PCB.
+        kSettingsA18BoundedSearch:   @NO,
+        kSettingsRemoteSettleMode:   @0,
         kSettingsAutoRunKexploit:    @NO,
         kSettingsRunSandboxEscape:   @YES,
         kSettingsRunPatchSandboxExt: @NO,
@@ -8489,6 +9016,9 @@ void settings_register_defaults(void)
 
         kSettingsSpeculumLiteEnabled: @NO,
 
+        kSettingsActionSwitchEnabled: @NO,
+        kSettingsActionSwitchMode: @"Single Flip",
+
         kSettingsExperimentalTweaksEnabled: @NO,
 
         kSettingsNanoMaxPairing:       @(kNanoDefaultMaxPairing),
@@ -8496,6 +9026,27 @@ void settings_register_defaults(void)
         kSettingsNanoMinPairingChipID: @(kNanoDefaultMinPairingChipID),
         kSettingsNanoMinQuickSwitch:   @(kNanoDefaultMinQuickSwitch),
     }];
+    // One-time: 1.5.7 shipped Dynamic (mode 1) as the shaping default, which
+    // pins a fraction of live jetsam headroom instead of the fixed 3 GB that
+    // 1.5.5 used. Field data showed the fixed 3 GB is markedly more reliable on
+    // A18/M4 (fewer aperture-panic reboots), so 3 GB is the default again. Move
+    // anyone still on Dynamic -- whether from the old registered default, from
+    // an unset key (a 1.5.5 updater), or from a 1.5.6 BOOL "on" that reads back
+    // as 1 -- onto 3 GB, once. An unset key now resolves to the @2 registration
+    // default, so only a persisted 1 trips this. An explicit Off (0) is a
+    // deliberate choice and is left alone, and because this is gated by a
+    // one-shot flag, a user who re-selects Dynamic afterwards keeps it.
+    static NSString * const kSettingsA18ShapeThreeGBMigration =
+        @"Arsenic.a18shape.default3GB.v1";
+    if (![defaults boolForKey:kSettingsA18ShapeThreeGBMigration]) {
+        if ([defaults integerForKey:kSettingsA18MemoryShaping] == 1) {
+            [defaults setInteger:2 forKey:kSettingsA18MemoryShaping];
+            printf("[SETTINGS] A18 memory shaping migrated Dynamic -> 3 GB "
+                   "(1.5.5 default restored)\n");
+        }
+        [defaults setBool:YES forKey:kSettingsA18ShapeThreeGBMigration];
+        [defaults synchronize];
+    }    
     NSString *selectedDockBundle = [defaults stringForKey:kSettingsSBCDockAppBundleID];
     if ([selectedDockBundle isEqualToString:kSBCLegacyDockAppBundleID]) {
         [defaults setObject:kSBCDefaultDockAppBundleID
@@ -8639,12 +9190,13 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             BOOL runMagsafe = settings_enabled_tweak_should_run(d, kSettingsMagsafeEnabled, springBoardPendingOnly);
             BOOL runNotweafications = settings_enabled_tweak_should_run(d, kSettingsNotweaficationsEnabled, springBoardPendingOnly);
             BOOL runSpeculumLite = settings_enabled_tweak_should_run(d, kSettingsSpeculumLiteEnabled, springBoardPendingOnly);
+            BOOL runActionSwitch = settings_enabled_tweak_should_run(d, kSettingsActionSwitchEnabled, springBoardPendingOnly);
             BOOL stagePausesThemerLive = settings_themer_dynamic_updates_blocked_by_stage(d);
             if (stagePausesThemerLive) {
                 settings_note_themer_stage_conflict(YES);
             }
             BOOL cleanupDisabledSpringBoardTweaks = settings_disabled_applied_springboard_cleanup_needed(d);
-            BOOL needsSpringBoardWork = runSBC || runDarkTweaks || runStatBar || runNSBar || runNiceBarLite || runRSSI || runAxonLite || runGravityLite || runLayoutExtras || runTypeBanner || runNotificationIsland || runAppSwitcherGrid || runThemer || runSnowBoardLite || runLiveWP || runStageStrip || runFastLockXLite || runQuickLoader || runRepoTweaks || runMagsafe || runNotweafications || runSpeculumLite || cleanupDisabledSpringBoardTweaks;
+            BOOL needsSpringBoardWork = runSBC || runDarkTweaks || runStatBar || runNSBar || runNiceBarLite || runRSSI || runAxonLite || runGravityLite || runLayoutExtras || runTypeBanner || runNotificationIsland || runAppSwitcherGrid || runThemer || runSnowBoardLite || runLiveWP || runStageStrip || runFastLockXLite || runQuickLoader || runRepoTweaks || runMagsafe || runNotweafications || runSpeculumLite || runActionSwitch || cleanupDisabledSpringBoardTweaks;
             BOOL runSandboxEscape = [d boolForKey:kSettingsRunSandboxEscape] && (!pendingOnly || needsSpringBoardWork);
             // TypeBanner prewarms its hidden SpringBoard window during Apply
             // and reuses the open SpringBoard session for text-only updates.
@@ -8684,6 +9236,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             if (runMagsafe) total++;
             if (runNotweafications) total++;
             if (runSpeculumLite) total++;
+            if (runActionSwitch) total++;
             if (cleanupDisabledSpringBoardTweaks) total++;
             NSUInteger step = 0;
             BOOL startStageStripControlLoopAfterInstall = NO;
@@ -8713,6 +9266,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             if (runMagsafe) [enabledTweaks addObject:@"magsafe"];
             if (runNotweafications) [enabledTweaks addObject:@"notweafications"];
             if (runSpeculumLite) [enabledTweaks addObject:@"speculum"];
+            if (runActionSwitch) [enabledTweaks addObject:@"actionswitch"];
             if (cleanupDisabledSpringBoardTweaks) [enabledTweaks addObject:@"cleanup"];
             if (forceSpringBoardRefresh) [enabledTweaks addObject:@"springboard-refresh"];
             log_user("[PLAN] %lu stages: %s\n",
@@ -9111,6 +9665,12 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                         }
                     }
 
+                    if (runActionSwitch) {
+                        settings_progress(&step, total, "Enabling Action Switch");
+                        kSettingsActionSwitchEnabled: @YES;
+                        settings_mark_tweak_applied(kSettingsActionSwitchEnabled, [d boolForKey:kSettingsActionSwitchEnabled]);
+                    }
+
                     if (runNotificationIsland) {
                         settings_progress(&step, total, "Starting Notification Island");
                         bool ok = notificationisland_apply_in_session();
@@ -9311,6 +9871,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                     }
                 }
                 if (closedNonLiveRemoteCall) {
+                    kadjust32_report("SpringBoard session");
                     log_user("[OK] SpringBoard channel released — no persistent hooks.\n");
                     arsenic_upload_log_milestone(@"springboard-remote-call-closed");
                 }
@@ -9322,14 +9883,23 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                 return;
             }
 
-            log_user("[DONE] All tweaks active in-session — live until respring.\n");
+            log_user("[DONE] All requested changes finished — active until respring.\n");
+            // Synchronous park + verify at session end. The idle parker and
+            // the background hook are eventually-consistent; the post-success
+            // panics fire while the device sits idle minutes after this line.
+            // Harmless if live tweaks keep running -- their next KRW access
+            // re-arms the primitive, and the idle parker re-parks after quiet.
+            kexploit_krw_session_end_park();
             runSucceeded = YES;
-            runCompletionMessage = @"Done. All tweaks applied in-session.";
+            runCompletionMessage = @"Done. All requested changes finished.";
             arsenic_upload_log_milestone(@"run-complete");
         } @finally {
             // Close any legacy uploader state before the final snapshot.
             arsenic_stop_session_uploads();
-            log_session_end();
+            // Flush, but keep the file open so post-[DONE] background output
+            // (idle parking, live-tweak loops) still lands in the shareable log.
+            // The next run's log_session_begin() rotates the file.
+            log_session_flush();
             __sync_lock_release(&g_settings_actions_running);
             settings_reconcile_applied_from_defaults();
             if (__sync_bool_compare_and_swap(&g_settings_actions_rerun_requested, 1, 0)) {
@@ -9395,6 +9965,7 @@ typedef NS_ENUM(NSInteger, SettingsSection) {
     SectionMagsafe,
     SectionNotweafications,
     SectionSpeculumLite,
+    SectionActionSwitch,
     SectionCount,
 };
 
@@ -10155,12 +10726,27 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
 
 - (NSArray<NSDictionary *> *)launchRows
 {
-    return @[
+    NSArray<NSDictionary *> *rows = @[
+        @{ @"kind": @"a18path", @"key": kSettingsA18ExploitPath, @"a18Only": @YES, @"title": @"A18 exploit path" },
+        @{ @"key": kSettingsA18Interleave, @"peV1Only": @YES, @"a18Only": @YES, @"title": @"A18 interleaved search",
+           @"subtitle": @"Experimental. On interleaves the socket spray with search-mapping allocation and scans each mapping tail-first, aiming to find the PCB in fewer reads. Off uses the proven bulk-spray + forward-scan path. A18/M4 only; effective on the next fresh chain run." },
+        @{ @"kind": @"a18shape", @"key": kSettingsA18MemoryShaping, @"peV1Only": @YES, @"a18Only": @YES, @"title": @"A18 memory shaping" },
+        @{ @"key": kSettingsA18BoundedSearch, @"peV1Only": @YES, @"a18Only": @YES, @"title": @"A18 bounded search",
+           @"subtitle": @"On stops after 4 search passes and reports a clean retry instead of grinding — which can otherwise end in an aperture panic on a device that never lands the PCB. Off (default, matches 1.5.5) grinds until the exploit acquires. A18/M4 only; effective on the next fresh chain run." },
+        @{ @"kind": @"settlemode", @"key": kSettingsRemoteSettleMode, @"title": @"Tweak apply speed" },
         @{ @"key": kSettingsAutoRunKexploit,    @"title": @"Auto-run kexploit on launch" },
         @{ @"key": kSettingsRunSandboxEscape,   @"title": @"Sandbox escape (escape_sbx_demo2)" },
         @{ @"key": kSettingsKeepAlive,          @"title": @"Keep app alive in background",
            @"subtitle": @"Required for app-driven live tweaks to persist while minimized, including StatBar receiving fresh live data." },
     ];
+    // A18/M4-only options (exploit path, interleave, shaping, bounded) are
+    // meaningless on other hardware -- pe_v1 standard geometry always runs there.
+    // Hide them entirely off-family (A18/A18 Pro/M4 and above).
+    if (settings_device_is_a18_above()) return rows;
+    NSMutableArray<NSDictionary *> *filtered = [NSMutableArray array];
+    for (NSDictionary *r in rows)
+        if (![r[@"a18Only"] boolValue]) [filtered addObject:r];
+    return filtered;
 }
 
 // The master enable / install-equivalent rows have been removed from each
@@ -10822,6 +11408,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         case SectionMagsafe: return self.magsafeRows;
         case SectionNotweafications:  return self.notweaficationsRows;
         case SectionSpeculumLite: return self.speculumLiteRows;
+        case SectionActionSwitch: return self.actionSwitchRows;
         default: return @[];
     }
 }
@@ -10860,6 +11447,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         @{ @"title": @"Magsafe Enabler",    @"icon": @"battery.100.bolt",                    @"color": [UIColor systemGreenColor],  @"section": @(SectionMagsafe) },
         @{ @"title": @"Notweafications",    @"icon": @"paintpalette.fill",                   @"color": [UIColor systemOrangeColor], @"section": @(SectionNotweafications) },
         @{ @"title": @"Speculum Lite",      @"icon": @"clock.fill",                          @"color": [UIColor systemOrangeColor], @"section": @(SectionSpeculumLite) },
+        @{ @"title": @"Action Switch",      @"icon": @"flashlight.on.fill",                  @"color": [UIColor systemYellowColor], @"section": @(SectionActionSwitch) },
         @{ @"title": @"Powercuff",          @"icon": @"bolt.slash.fill",                     @"color": [UIColor systemOrangeColor], @"section": @(SectionPowercuff) },
         @{ @"title": @"SpringBoard Tweaks", @"icon": @"apps.iphone",                         @"color": [UIColor systemIndigoColor], @"section": @(SectionDarkSwordTweaks) },
         @{ @"title": @"Drag Coefficient",   @"icon": @"dial.medium.fill",                    @"color": [UIColor systemIndigoColor], @"section": @(SectionDragCoefficient) },
@@ -11039,6 +11627,9 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     }
     if (s == SectionSpeculumLite) {
         return @"RemoteCall-only Speculum port. It lets you customize the LockScreen.";
+    }
+    if (s == SectionActionSwitch) {
+        return @"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch.";
     }
     if (s == SectionTypeBanner) {
         return @"Partial TypeMillennium port. Detection runs against imagent using original-thread RemoteCall probes, while SpringBoard renders a prewarmed banner window.";
@@ -12657,7 +13248,6 @@ void arsenic_present_contact(UIViewController *host)
 {
     if (!host) return;
 
-    // Se l'utente clicca su "Contatti", viene suggerito di usare il log locale o GitHub
     UIAlertController *ac = [UIAlertController
         alertControllerWithTitle:@"Support & Diagnostics"
                          message:@"To report issues, open an issue on GitHub or use 'View / Share Log' to copy your diagnostic log."
@@ -13009,6 +13599,157 @@ void arsenic_present_contact(UIViewController *host)
         return cell;
     }
 
+    if ([kind isEqualToString:@"a18path"]) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                                       reuseIdentifier:nil];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
+        UILabel *title = [UILabel new];
+        title.text = row[@"title"];
+        title.font = [UIFont systemFontOfSize:17.0];
+        title.translatesAutoresizingMaskIntoConstraints = NO;
+
+        UISegmentedControl *seg =
+            [[UISegmentedControl alloc] initWithItems:@[@"pe_v1 (default)", @"pe_v2 (fallback)"]];
+        seg.translatesAutoresizingMaskIntoConstraints = NO;
+        // Display order is pe_v1 first, but the stored value is unchanged
+        // (1 = pe_v1, 0 = pe_v2) so existing preferences keep their meaning.
+        seg.selectedSegmentIndex = ([d integerForKey:kSettingsA18ExploitPath] == 1) ? 0 : 1;
+        seg.enabled = settings_device_is_a18_above();
+        [seg addTarget:self action:@selector(a18PathSegChanged:)
+      forControlEvents:UIControlEventValueChanged];
+
+        UILabel *note = [UILabel new];
+        note.numberOfLines = 0;
+        note.font = [UIFont systemFontOfSize:12.0];
+        note.textColor = UIColor.secondaryLabelColor;
+        note.text = settings_device_is_a18_above()
+            ? @"A18/M4 only. pe_v1 is the default and the only path with a measured acquire "
+               "rate (~50% per attempt; parked state makes it a one-time cost per boot). pe_v2 "
+               "stages 2 GB as 131,072 separate IOSurfaces, but iOS caps a process at 16,384 — so "
+               "most fail and it has not acquired reliably in testing. Leave this on pe_v1."
+            : @"A18/M4 devices only. This device uses pe_v1 already.";
+        note.translatesAutoresizingMaskIntoConstraints = NO;
+
+        [cell.contentView addSubview:title];
+        [cell.contentView addSubview:seg];
+        [cell.contentView addSubview:note];
+        UILayoutGuide *m = cell.contentView.layoutMarginsGuide;
+        [NSLayoutConstraint activateConstraints:@[
+            [title.leadingAnchor  constraintEqualToAnchor:m.leadingAnchor],
+            [title.trailingAnchor constraintEqualToAnchor:m.trailingAnchor],
+            [title.topAnchor      constraintEqualToAnchor:m.topAnchor],
+            [seg.leadingAnchor    constraintEqualToAnchor:m.leadingAnchor],
+            [seg.trailingAnchor   constraintEqualToAnchor:m.trailingAnchor],
+            [seg.topAnchor        constraintEqualToAnchor:title.bottomAnchor constant:8],
+            [note.leadingAnchor   constraintEqualToAnchor:m.leadingAnchor],
+            [note.trailingAnchor  constraintEqualToAnchor:m.trailingAnchor],
+            [note.topAnchor       constraintEqualToAnchor:seg.bottomAnchor constant:8],
+            [note.bottomAnchor    constraintEqualToAnchor:m.bottomAnchor],
+        ]];
+        return cell;
+    }
+
+    if ([kind isEqualToString:@"a18shape"]) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                                       reuseIdentifier:nil];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
+        UILabel *title = [UILabel new];
+        title.text = row[@"title"];
+        title.font = [UIFont systemFontOfSize:17.0];
+        title.translatesAutoresizingMaskIntoConstraints = NO;
+
+        UISegmentedControl *seg =
+            [[UISegmentedControl alloc] initWithItems:@[@"Off", @"Dynamic", @"3 GB"]];
+        seg.translatesAutoresizingMaskIntoConstraints = NO;
+        seg.selectedSegmentIndex = [d integerForKey:kSettingsA18MemoryShaping];
+        [seg addTarget:self
+                action:@selector(a18ShapeSegChanged:)
+      forControlEvents:UIControlEventValueChanged];
+        // pe_v1-only: shaping does nothing on the pe_v2 path -- disable + dim.
+        BOOL a18shapeEnabled = ([d integerForKey:kSettingsA18ExploitPath] == 1);
+        seg.enabled = a18shapeEnabled;
+        title.textColor = a18shapeEnabled ? UIColor.labelColor : UIColor.tertiaryLabelColor;
+
+        UILabel *note = [UILabel new];
+        note.numberOfLines = 0;
+        note.font = [UIFont systemFontOfSize:12.0];
+        note.textColor = a18shapeEnabled ? UIColor.secondaryLabelColor : UIColor.tertiaryLabelColor;
+        note.text = @"A18/M4 only. Pins physical memory so the page after each search mapping is more "
+                     "often ours and valid, lowering the aperture-panic rate. Off uses standard geometry "
+                     "(no pin). Dynamic sizes the pin to live jetsam headroom (75%), adapting per device "
+                     "to avoid the jetsam kill a fixed size can cause. 3 GB is the fixed 1.5.5 size. "
+                     "Effective on the next fresh chain run.";
+        note.translatesAutoresizingMaskIntoConstraints = NO;
+
+        [cell.contentView addSubview:title];
+        [cell.contentView addSubview:seg];
+        [cell.contentView addSubview:note];
+        UILayoutGuide *m = cell.contentView.layoutMarginsGuide;
+        [NSLayoutConstraint activateConstraints:@[
+            [title.leadingAnchor  constraintEqualToAnchor:m.leadingAnchor],
+            [title.trailingAnchor constraintEqualToAnchor:m.trailingAnchor],
+            [title.topAnchor      constraintEqualToAnchor:m.topAnchor],
+            [seg.leadingAnchor    constraintEqualToAnchor:m.leadingAnchor],
+            [seg.trailingAnchor   constraintEqualToAnchor:m.trailingAnchor],
+            [seg.topAnchor        constraintEqualToAnchor:title.bottomAnchor constant:8],
+            [note.leadingAnchor   constraintEqualToAnchor:m.leadingAnchor],
+            [note.trailingAnchor  constraintEqualToAnchor:m.trailingAnchor],
+            [note.topAnchor       constraintEqualToAnchor:seg.bottomAnchor constant:8],
+            [note.bottomAnchor    constraintEqualToAnchor:m.bottomAnchor],
+        ]];
+        return cell;
+    }
+
+    if ([kind isEqualToString:@"settlemode"]) {
+        UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                                       reuseIdentifier:nil];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+
+        UILabel *title = [UILabel new];
+        title.text = row[@"title"];
+        title.font = [UIFont systemFontOfSize:17.0];
+        title.translatesAutoresizingMaskIntoConstraints = NO;
+
+        UISegmentedControl *seg =
+            [[UISegmentedControl alloc] initWithItems:@[@"Compatible", @"Fast", @"Fastest"]];
+        seg.translatesAutoresizingMaskIntoConstraints = NO;
+        seg.selectedSegmentIndex = [d integerForKey:kSettingsRemoteSettleMode];
+        [seg addTarget:self
+                action:@selector(settleModeSegChanged:)
+      forControlEvents:UIControlEventValueChanged];
+
+        UILabel *note = [UILabel new];
+        note.numberOfLines = 0;
+        note.font = [UIFont systemFontOfSize:12.0];
+        note.textColor = UIColor.secondaryLabelColor;
+        note.text = @"Arsenic waits after each remote call so SpringBoard can settle. Compatible "
+                     "waits 50 ms, Fast 5 ms, Fastest only after calls that leave work running. "
+                     "Most of a tweak's apply time is this wait — Double Tap to Lock spends about "
+                     "13 waits per Home Screen page. Drop to Fast first; if tweaks still apply "
+                     "correctly, try Fastest. Go back to Compatible if anything misbehaves.";
+        note.translatesAutoresizingMaskIntoConstraints = NO;
+
+        [cell.contentView addSubview:title];
+        [cell.contentView addSubview:seg];
+        [cell.contentView addSubview:note];
+        UILayoutGuide *m = cell.contentView.layoutMarginsGuide;
+        [NSLayoutConstraint activateConstraints:@[
+            [title.leadingAnchor  constraintEqualToAnchor:m.leadingAnchor],
+            [title.trailingAnchor constraintEqualToAnchor:m.trailingAnchor],
+            [title.topAnchor      constraintEqualToAnchor:m.topAnchor],
+            [seg.leadingAnchor    constraintEqualToAnchor:m.leadingAnchor],
+            [seg.trailingAnchor   constraintEqualToAnchor:m.trailingAnchor],
+            [seg.topAnchor        constraintEqualToAnchor:title.bottomAnchor constant:8],
+            [note.leadingAnchor   constraintEqualToAnchor:m.leadingAnchor],
+            [note.trailingAnchor  constraintEqualToAnchor:m.trailingAnchor],
+            [note.topAnchor       constraintEqualToAnchor:seg.bottomAnchor constant:8],
+            [note.bottomAnchor    constraintEqualToAnchor:m.bottomAnchor],
+        ]];
+        return cell;
+    }
+
     if ([kind isEqualToString:@"segmented"]) {
         UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"segmented" forIndexPath:dequeuePath];
                 cell.selectionStyle = UITableViewCellSelectionStyleNone;
@@ -13021,6 +13762,9 @@ void arsenic_present_contact(UIViewController *host)
                 if ([row[@"key"] isEqualToString:kSettingsMagsafeStyle]) {
                     items = @[@"Native", @"Arsenic"];
                     defaultValue = @"Native";
+                } else if ([row[@"key"] isEqualToString:kSettingsActionSwitchMode]) {
+                    items = @[@"Double Flip", @"Single Flip"];
+                    defaultValue = @"Double Flip";
                 } else {
                     items = powercuff_levels();
                     defaultValue = @"nominal";
@@ -13046,6 +13790,15 @@ void arsenic_present_contact(UIViewController *host)
                         settings_notify_package_queue_changed_async();
                     }];
                     [seg addAction:action forControlEvents:UIControlEventValueChanged];
+                } else if ([row[@"key"] isEqualToString:kSettingsActionSwitchMode]) {
+                    UIAction *action = [UIAction actionWithHandler:^(__kindof UIAction * _Nonnull action) {
+                        UISegmentedControl *sender = action.sender;
+                        NSString *selected = items[sender.selectedSegmentIndex];
+                        [[NSUserDefaults standardUserDefaults] setObject:selected forKey:kSettingsActionSwitchMode];
+                        [[NSUserDefaults standardUserDefaults] synchronize];
+                    }];
+                    [seg addAction:action forControlEvents:UIControlEventValueChanged];
+                    
                 } else {
                     [seg addTarget:self action:@selector(powercuffSegChanged:) forControlEvents:UIControlEventValueChanged];
                 }
@@ -13219,6 +13972,11 @@ void arsenic_present_contact(UIViewController *host)
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"toggle" forIndexPath:dequeuePath];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
     BOOL rowEnabled = supported && ![row[@"disabled"] boolValue];
+    // pe_v1-only options (interleave/bounded) are inert on the pe_v2 path -- grey
+    // them out so a control never looks live when it does nothing.
+    if ([row[@"peV1Only"] boolValue] &&
+        [d integerForKey:kSettingsA18ExploitPath] != 1)
+        rowEnabled = NO;
     cell.userInteractionEnabled = rowEnabled;
     NSString *subtitle = row[@"subtitle"];
     if (subtitle.length > 0) {
@@ -14307,6 +15065,41 @@ void arsenic_present_contact(UIViewController *host)
     }
 }
 
+- (void)a18PathSegChanged:(UISegmentedControl *)sender
+{
+    // Segment 0 is pe_v1, which is stored as 1 -- see the control's comment.
+    NSInteger path = (sender.selectedSegmentIndex == 0) ? 1 : 0;
+    [[NSUserDefaults standardUserDefaults] setInteger:path forKey:kSettingsA18ExploitPath];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    log_user("[KRW] A18 exploit path set to %s. Takes effect on the next fresh chain run "
+             "(a parked/recovered session skips the exploit entirely).\n",
+             path == 1 ? "pe_v1 (default)" : "pe_v2 (fallback)");
+    // The pe_v1-only options (shaping/interleave/bounded) enable/disable with the
+    // path -- reload so they grey out or come back live immediately.
+    [self.tableView reloadData];
+}
+
+- (void)settleModeSegChanged:(UISegmentedControl *)sender
+{
+    NSInteger mode = sender.selectedSegmentIndex;
+    [[NSUserDefaults standardUserDefaults] setInteger:mode forKey:kSettingsRemoteSettleMode];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    r_settle_set_mode((int)mode);
+    log_user("[TWEAKS] Apply speed set to %s. Watch the log for \"[R_OBJC] ... ms slept\" to see "
+             "the difference on the next apply.\n",
+             mode == 0 ? "Compatible" : mode == 1 ? "Fast" : "Fastest");
+}
+
+- (void)a18ShapeSegChanged:(UISegmentedControl *)sender
+{
+    NSInteger mode = sender.selectedSegmentIndex;
+    [[NSUserDefaults standardUserDefaults] setInteger:mode forKey:kSettingsA18MemoryShaping];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    log_user("[KRW] A18 memory shaping set to %s. Effective on the next fresh chain run.\n",
+             mode == 0 ? "Off (standard geometry)" :
+             mode == 1 ? "Dynamic (75% of jetsam headroom)" : "3 GB (fixed)");
+}
+
 - (void)powercuffSegChanged:(UISegmentedControl *)sender
 {
     if (!settings_device_supported()) {
@@ -15180,6 +15973,13 @@ void arsenic_present_contact(UIViewController *host)
 - (NSArray<NSDictionary *> *)repoTweaksRows {
     return @[
         @{ @"kind": @"button", @"action": @"repotweaks-open-manager", @"title": @"📦 Open Sources Tab" }
+    ];
+}
+
+- (NSArray<NSDictionary *> *)actionSwitchRows {
+    return @[
+        @{ @"kind": @"switch", @"key": kSettingsActionSwitchEnabled, @"title": @"Enable Action Switch" },
+        @{ @"kind": @"segmented", @"key": kSettingsActionSwitchMode, @"title": @"Trigger Mode" }
     ];
 }
 

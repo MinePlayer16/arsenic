@@ -6,6 +6,7 @@
 #import "location_sim.h"
 #import "remote_objc.h"
 #import "../TaskRop/RemoteCall.h"
+#import "../LogTextView.h"   // mirror printf into the chain log
 
 #import <Foundation/Foundation.h>
 #import <dlfcn.h>

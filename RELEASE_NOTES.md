@@ -30,6 +30,25 @@ activity, omit it.
 
 ## Released
 
+### v1.5.0 - 2026-09-07
+
+- [x] RemoteCall: Changes by Kolbicz.
+- [x] Speculum Lite: (FEATURE) Design Presets.
+- [x] New Tweak: Action Switch
+- [x] Arsenic: Queue presets (PACKAGES TAB)
+
+### v1.4.1 - 2026-08-18
+
+- [x] Speculum Lite: (FIX) Instantaneous labels refresh on wake.
+- [x] Notweafications: (FEATURE) User customization.
+
+### v1.4.0 - 2026-08-05
+
+- [x] QuickLoader Javascript Bridge Updated (v2.0)
+- [x] New Tweak: Magsafe Enabler
+- [x] New Tweak: Notweafications
+- [x] New Tweak: Speculum Lite
+
 ### v1.3.6 - 2026-06-27
 
 - [x] Removed Patreon integration and ungated all installable Arsenic tweaks, with stale account-linking state cleared so beta access is the same for everyone.

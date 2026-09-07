@@ -6,12 +6,18 @@
 //
 
 #import "LogTextView.h"
+#import <UIKit/UIKit.h>
+#import <unistd.h>
+#import <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
+#include <sys/utsname.h>
 #include <time.h>
+#import "kexploit/machine_info.h"
 
 #define LOG_MAX_LINES   50000
 #define LOG_TRIM_TO     30000
@@ -28,6 +34,12 @@ static pthread_mutex_t log_mutex    = PTHREAD_MUTEX_INITIALIZER;
 // every completed line is also written here with a wall-clock timestamp.
 // Both fields are guarded by log_mutex.
 static FILE *log_file                = NULL;
+// 50 ms. The first captured panic log lost the line identifying which search
+// mapping was being scanned, because it fell inside a 200 ms window. The whole
+// exploit phase is only a couple of seconds, so a tighter interval costs little
+// and buys resolution exactly where it matters.
+#define LOG_FSYNC_INTERVAL_NS 50000000ULL
+static uint64_t log_last_fsync_ns = 0;
 static char  log_file_path_c[1024]   = {0};
 
 void log_init(void) {
@@ -84,6 +96,21 @@ static void log_write_raw_internal(const char *msg, int skipTimestamp) {
             if (log_file) {
                 fprintf(log_file, "%s\n", stamped_line);
                 fflush(log_file);
+                // fflush only hands the bytes to the OS; on a kernel panic the
+                // filesystem buffers never reach flash, so the run that most
+                // needs a log leaves a 0-byte file (see chain-20260829-142508.log
+                // and chain-20260830-133739.log, both from panicking runs).
+                // F_FULLFSYNC forces them out. Rate-limited so the exploit's timing
+                // is not perturbed by a flash write per line -- worst case we
+                // lose the last LOG_FSYNC_INTERVAL_NS of output.
+                uint64_t nowNS = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
+                if (nowNS - log_last_fsync_ns >= LOG_FSYNC_INTERVAL_NS) {
+                    // fsync() is NOT enough on Apple platforms -- it only pushes
+                    // to the drive, which is why chain logs were still 0 bytes
+                    // after panics. F_FULLFSYNC is the one that reaches media.
+                    fcntl(fileno(log_file), F_FULLFSYNC, 0);
+                    log_last_fsync_ns = nowNS;
+                }
             }
 
             line_pos  = 0;
@@ -215,7 +242,76 @@ void log_session_begin(void) {
                 "# Arsenic chain session %04d-%02d-%02d %02d:%02d:%02d\n",
                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
                 tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+        // Device and build banner. Logs arrive from other people with no idea
+        // what they were running on; every question about one of them so far
+        // has started with "which device, which iOS, which Arsenic".
+        {
+            char machine[64] = {0};
+            size_t sz = sizeof(machine);
+            if (sysctlbyname("hw.machine", machine, &sz, NULL, 0) != 0)
+                strlcpy(machine, "unknown", sizeof(machine));
+
+            char osbuild[64] = {0};
+            sz = sizeof(osbuild);
+            if (sysctlbyname("kern.osversion", osbuild, &sz, NULL, 0) != 0)
+                strlcpy(osbuild, "unknown", sizeof(osbuild));
+
+            uint32_t cpuFamily = 0;
+            sz = sizeof(cpuFamily);
+            if (sysctlbyname("hw.cpufamily", &cpuFamily, &sz, NULL, 0) != 0)
+                cpuFamily = 0;
+
+            // Boot time and uptime. Without these, grouping runs by boot has to
+            // be reconstructed from panic-log timestamps, which is guesswork --
+            // and guessing it wrong is exactly how the "second run in a boot"
+            // theory got made up on 2026-08-31.
+            struct timeval boottv = {0};
+            size_t btsz = sizeof(boottv);
+            char bootDesc[64];
+            if (sysctlbyname("kern.boottime", &boottv, &btsz, NULL, 0) == 0 && boottv.tv_sec) {
+                time_t bt = boottv.tv_sec;
+                struct tm btm;
+                localtime_r(&bt, &btm);
+                char stamp[32];
+                strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", &btm);
+                long up = (long)(time(NULL) - bt);
+                snprintf(bootDesc, sizeof(bootDesc), "%s (up %ldm %lds)",
+                         stamp, up / 60, up % 60);
+            } else {
+                strlcpy(bootDesc, "unknown", sizeof(bootDesc));
+            }
+
+            NSString *osVersion = UIDevice.currentDevice.systemVersion ?: @"unknown";
+            NSBundle *bundle = [NSBundle mainBundle];
+            NSString *appVersion =
+                [bundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown";
+            NSString *appBuild =
+                [bundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown";
+
+            // Keep the raw family alongside the name: the name is what makes
+            // a log readable at a glance, the hex is what identifies a chip we
+            // have no name for yet.
+            const char *cpuName = machine_cpu_name(cpuFamily);
+            char cpuDesc[64];
+            if (cpuName)
+                snprintf(cpuDesc, sizeof(cpuDesc), "%s (0x%08x)", cpuName, cpuFamily);
+            else
+                snprintf(cpuDesc, sizeof(cpuDesc), "0x%08x", cpuFamily);
+
+            fprintf(log_file,
+                    "# device %s  iOS %s (%s)  cpu %s\n"
+                    "# booted %s\n"
+                    "# Arsenic %s (%s)\n",
+                    machine, osVersion.UTF8String, osbuild, cpuDesc,
+                    bootDesc,
+                    appVersion.UTF8String, appBuild.UTF8String);
+        }
         fflush(log_file);
+        // Same reason as the write path: without F_FULLFSYNC even the header
+        // can be lost, which is how a panicking run left a 0-byte file.
+        fcntl(fileno(log_file), F_FULLFSYNC, 0);
+        log_last_fsync_ns = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
     }
     pthread_mutex_unlock(&log_mutex);
 
@@ -229,6 +325,22 @@ void log_session_end(void) {
         fclose(log_file);
         log_file = NULL;
         log_file_path_c[0] = '\0';
+    }
+    pthread_mutex_unlock(&log_mutex);
+}
+
+// Make everything so far durable WITHOUT closing the file. A chain run used to
+// call log_session_end() at [DONE], which closed the file -- so the idle-park
+// worker and live-tweak loops that keep logging in the background had nowhere
+// to write, and their output showed only in the in-app view, never the
+// shareable chain-*.log. Flushing instead leaves the file open to capture that
+// tail; the next log_session_begin() rotates it.
+void log_session_flush(void) {
+    pthread_mutex_lock(&log_mutex);
+    if (log_file) {
+        fflush(log_file);
+        fcntl(fileno(log_file), F_FULLFSYNC, 0);
+        log_last_fsync_ns = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
     }
     pthread_mutex_unlock(&log_mutex);
 }

@@ -3,6 +3,10 @@
 //
 
 #import "remote_objc.h"
+// printf in this TU went to stdout only, so [R_OBJC] never reached the chain
+// log. LogTextView.h mirrors printf into the in-app log; the macro evaluates
+// its arguments twice, and all three printf sites here pass plain reads.
+#import "../LogTextView.h"
 #import "../TaskRop/RemoteCall.h"
 #import <pthread.h>
 #import <stdlib.h>
@@ -11,7 +15,29 @@
 
 extern uint64_t remote_read64(uint64_t src);
 
+// Blanket delay paid before every remote ObjC interaction. It exists to give
+// SpringBoard a moment to finish whatever the previous call kicked off, but it
+// was applied unconditionally — including to pure queries that have no side
+// effects at all. At 50ms a tweak issuing a few hundred messages spends most of
+// its wall-clock time asleep here. r_settle_us() tunes it at runtime.
 static useconds_t gSettleUS = 50000;
+
+// Settle policy. The default reproduces the historical behaviour exactly.
+//   RSettleCompatible - 50 ms before every mutating message (as shipped).
+//   RSettleFast       - same rule, 5 ms.
+//   RSettleAsyncOnly  - only settle when work is genuinely still in flight,
+//                       i.e. after an r_msg2_main_async() dispatch made with
+//                       waitUntilDone:NO. Every other path goes through
+//                       do_remote_call_stable(), which does not return until
+//                       the target has finished running the selector, so there
+//                       is nothing left to wait for.
+static int gSettleMode = 0;
+static bool gSettleOwed = false;
+
+// Rough accounting so the cost is visible in the log instead of guessed at.
+static uint64_t gRemoteMsgCount = 0;
+static uint64_t gSettleCount = 0;
+static uint64_t gSettleSleptUS = 0;
 
 #define R_OBJC_CACHE_CAP 192
 #define R_OBJC_CACHE_NAME_MAX 96
@@ -84,7 +110,105 @@ static void r_cache_store(RemoteObjCCacheEntry *cache, int *nextSlot, int pid, c
 
 static void r_settle(void)
 {
-    if (gSettleUS) usleep(gSettleUS);
+    gRemoteMsgCount++;
+    if (gSettleMode == 2) {
+        // Async-only: pay the debt left by a fire-and-forget dispatch, nothing else.
+        if (!gSettleOwed) return;
+        gSettleOwed = false;
+    }
+    if (gSettleUS) {
+        gSettleCount++;
+        gSettleSleptUS += gSettleUS;
+        usleep(gSettleUS);
+    }
+    // Periodic cost report — a tweak that feels slow can be checked against
+    // this instead of guessed at.
+    if ((gRemoteMsgCount % 250) == 0) {
+        printf("[R_OBJC] %llu remote messages, %llu settles, %llu ms slept in settles\n",
+               gRemoteMsgCount, gSettleCount, gSettleSleptUS / 1000);
+    }
+}
+
+// respondsToSelector: and friends are pure queries: they mutate nothing, so
+// there is nothing for SpringBoard to settle after. Count them, never sleep.
+static void r_settle_query(void)
+{
+    gRemoteMsgCount++;
+}
+
+// Deliberately conservative allowlist of selectors that only read state.
+// Enumerating an array or asking a view for its superview cannot leave
+// SpringBoard with work in flight, so paying the settle for them is pure loss —
+// and these are exactly the selectors that appear inside the per-page and
+// per-window loops that make a tweak apply feel slow. Anything that allocates,
+// mutates, or triggers layout must NOT be added here.
+static bool r_selector_is_pure_query(const char *selName)
+{
+    static const char *const kPureQueries[] = {
+        "count",
+        "objectAtIndex:",
+        "objectForKey:",
+        "superview",
+        "subviews",
+        "windows",
+        "isKindOfClass:",
+        "respondsToSelector:",
+        "isDock",
+        // Property getters on SBIconListView / SBIconListModel. These are the
+        // hottest selectors in the SBC arrange path -- every page_model_at() is
+        // a "model" and every icon count is an "icons" -- and neither mutates
+        // anything, so settling after them was pure loss.
+        "model",
+        "icons",
+        "iconListViewCount",
+        "iconListViewAtIndex:",
+        "visibleIconListViews",
+        "iconListViews",
+        NULL,
+    };
+    for (int i = 0; kPureQueries[i]; i++) {
+        if (strcmp(selName, kPureQueries[i]) == 0) return true;
+    }
+    return false;
+}
+
+// Settle unless the selector is a known read-only query.
+static void r_settle_for(const char *selName)
+{
+    if (selName && r_selector_is_pure_query(selName)) {
+        r_settle_query();
+        return;
+    }
+    r_settle();
+}
+
+void r_perf_report(const char *label)
+{
+    printf("[R_OBJC] %s: %llu remote messages, %llu settles, %llu ms slept\n",
+           label ?: "totals", gRemoteMsgCount, gSettleCount, gSettleSleptUS / 1000);
+}
+
+void r_settle_set_mode(int mode)
+{
+    if (mode < 0 || mode > 2) mode = 0;
+    gSettleMode = mode;
+    gSettleUS = (mode == 1) ? 5000 : 50000;
+    gSettleOwed = false;
+    printf("[R_OBJC] settle mode=%d (%s), settle=%u us\n", mode,
+           mode == 0 ? "compatible" : mode == 1 ? "fast" : "async-only",
+           (unsigned)gSettleUS);
+}
+
+int r_settle_get_mode(void)
+{
+    return gSettleMode;
+}
+
+void r_perf_reset(void)
+{
+    gRemoteMsgCount = 0;
+    gSettleCount = 0;
+    gSettleSleptUS = 0;
 }
 
 static uint64_t r_call_stable(int timeout, const char *fnName,
@@ -193,7 +317,7 @@ uint64_t r_msg2(uint64_t obj, const char *selName,
     if (!obj || !selName) return 0;
     uint64_t sel = r_sel(selName);
     if (!sel) return 0;
-    r_settle();
+    r_settle_for(selName);
     return r_msg(obj, sel, a0, a1, a2, a3);
 }
 
@@ -347,7 +471,7 @@ uint64_t r_msg2_main(uint64_t obj, const char *selName,
     if (!obj || !selName) return 0;
     uint64_t sel = r_sel(selName);
     if (!sel) return 0;
-    r_settle();
+    r_settle_for(selName);
     return r_msg_main(obj, sel, a0, a1, a2, a3);
 }
 
@@ -361,7 +485,7 @@ void r_msg2_main_async(uint64_t obj, const char *selName,
     if (!r_is_objc_ptr(obj) || !selName) return;
     uint64_t sel = r_sel(selName);
     if (!sel) return;
-    r_settle();
+    r_settle_for(selName);
 
     uint64_t sig = 0;
     {
@@ -408,6 +532,10 @@ void r_msg2_main_async(uint64_t obj, const char *selName,
     uint64_t performSel = r_sel("performSelectorOnMainThread:withObject:waitUntilDone:");
     uint64_t invokeSel = r_sel("invoke");
     if (performSel && invokeSel) r_msg(inv, performSel, invokeSel, 0, 0, 0);
+
+    // Fire-and-forget: the main thread may still be running this when we
+    // return, so the next remote interaction owes a settle.
+    gSettleOwed = true;
 }
 
 uint64_t r_msg2_main_raw(uint64_t obj, const char *selName,
@@ -419,7 +547,7 @@ uint64_t r_msg2_main_raw(uint64_t obj, const char *selName,
     if (!obj || !selName) return 0;
     uint64_t sel = r_sel(selName);
     if (!sel) return 0;
-    r_settle();
+    r_settle_for(selName);
     return r_msg_main_raw(obj, sel, a0, a0Size, a1, a1Size, a2, a2Size, a3, a3Size);
 }
 
@@ -436,7 +564,7 @@ bool r_msg2_main_struct_ret(uint64_t obj, const char *selName,
     if (!r_is_objc_ptr(obj) || !selName || !outBuf || outSize == 0) return false;
     uint64_t sel = r_sel(selName);
     if (!sel) return false;
-    r_settle();
+    r_settle_for(selName);
 
     uint64_t sig = r_method_signature(obj, sel);
     if (!r_is_objc_ptr(sig)) return false;
@@ -551,7 +679,7 @@ bool r_responds(uint64_t obj, const char *selName)
     if (!sel) return false;
     uint64_t respondsSel = r_sel("respondsToSelector:");
     if (!respondsSel) return false;
-    r_settle();
+    r_settle_query();  // pure query: nothing to settle
     uint64_t r = r_msg(obj, respondsSel, sel, 0, 0, 0);
     return (r & 0xff) != 0;
 }
@@ -563,7 +691,7 @@ bool r_responds_main(uint64_t obj, const char *selName)
     if (!sel) return false;
     uint64_t respondsSel = r_sel("respondsToSelector:");
     if (!respondsSel) return false;
-    r_settle();
+    r_settle_query();  // pure query: nothing to settle
     uint64_t r = r_msg_main(obj, respondsSel, sel, 0, 0, 0);
     return (r & 0xff) != 0;
 }

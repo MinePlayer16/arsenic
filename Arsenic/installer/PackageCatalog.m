@@ -7,6 +7,7 @@
 #import "../SettingsViewController.h"
 #import "../tweaks/RepoTweaks.h"
 #import "../tweaks/experimental_tweaks.h"
+#import <sys/utsname.h>
 
 @interface Package ()
 @property (nonatomic, readwrite, copy) NSString *symbolName;
@@ -129,6 +130,41 @@ static const NSInteger kSecRepoTweaks       = 26;
 static const NSInteger kSecMagsafe          = 27;
 static const NSInteger kSecNotweafications  = 28;
 static const NSInteger kSecSpeculumLite     = 29;
+static const NSInteger kSecActionSwitch     = 30;
+
++ (BOOL)deviceHasMuteSwitch {
+    struct utsname u = {0};
+    const char *machineChar = "device";
+    if (uname(&u) == 0 && u.machine[0]) {
+        machineChar = u.machine;
+    }
+    
+    NSString *machine = [NSString stringWithUTF8String:machineChar];
+    
+    if ([machine isEqualToString:@"i386"] || [machine isEqualToString:@"x86_64"] || [machine isEqualToString:@"arm64"]) {
+        return YES;
+    }
+    
+    if (![machine hasPrefix:@"iPhone"]) {
+        return NO;
+    }
+    
+    if ([machine isEqualToString:@"iPhone16,1"] || [machine isEqualToString:@"iPhone16,2"]) {
+        return NO;
+    }
+    
+    NSScanner *scanner = [NSScanner scannerWithString:machine];
+    [scanner scanString:@"iPhone" intoString:NULL];
+    int majorVersion = 0;
+    
+    if ([scanner scanInt:&majorVersion]) {
+        if (majorVersion >= 17) {
+            return NO;
+        }
+    }
+    
+    return YES;
+}
 
 + (NSArray<Package *> *)allPackages
 {
@@ -153,6 +189,8 @@ static const NSInteger kSecSpeculumLite     = 29;
         NSString *version = @"1.0";
         NSString *inDevelopmentDisabledReason =
             @"In development — install is disabled because this tweak does not work yet. The code is left in the app/source tree for anyone who wants to pick it up.";
+        NSString *muteswitchDisabledReason =
+            @"Install is disabled because your device doesn't have a Mute Switch or it has the real Action Button.";
 
         Package *statBar = [[Package alloc] initWithIdentifier:@"com.darksword.statbar"
                                            name:@"StatBar"
@@ -463,7 +501,7 @@ static const NSInteger kSecSpeculumLite     = 29;
                                            name:@"Speculum Lite"
                                shortDescription:@"Lockscreen clock customization"
                                 longDescription:@"Customize the lockscreen clock with custom text, fonts, colors, and positioning using a live app-side loop.\n\nToggle the tweak from the Settings tab.\n\nBased on Speculum by LacertosusDeus. No original tweak code or assets are reused."
-                                        version:@"2.0"
+                                        version:@"2.1"
                                          author:@"Iggy05"
                                        category:@"SpringBoard"
                                      symbolName:@"clock.fill"
@@ -471,6 +509,24 @@ static const NSInteger kSecSpeculumLite     = 29;
                                      enabledKey:kSettingsSpeculumLiteEnabled
                                           isNew:YES];
         speculumLite.settingsSection = kSecSpeculumLite;
+
+        Package *actionSwitch = [[Package alloc] initWithIdentifier:@"com.arsenic.actionswitch"
+                                           name:@"Action Switch"
+                               shortDescription:@"Mute switch flashlight toggle"
+                                longDescription:@"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch."
+                                        version:@"1.0"
+                                         author:@"Iggy05"
+                                       category:@"System"
+                                     symbolName:@"flashlight.on.fill"
+                                           kind:PackageInstallKindToggle
+                                     enabledKey:@"ActionSwitchEnabled"
+                                          isNew:YES];
+        actionSwitch.settingsSection = kSecActionSwitch;
+        if (![self deviceHasMuteSwitch]) {
+          actionSwitch.installDisabledReason = muteswitchDisabledReason;
+          actionSwitch.unstableWarning = @"⚠️ Install is disabled because your device doesn't have a Mute Switch.";
+        }
+        
 
 #if ARSENIC_EXPERIMENTAL_TWEAKS_AVAILABLE
         Package *fastLockXLite = [[Package alloc] initWithIdentifier:@"com.darksword.fastlockx-lite"
@@ -658,6 +714,7 @@ static const NSInteger kSecSpeculumLite     = 29;
             magsafe,
             notweafications,
             speculumLite,
+            actionSwitch,
         ];
     });
     NSArray<Package *> *repoPackages = [self repoPackages];

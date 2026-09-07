@@ -2,6 +2,7 @@
 //  sbcustomizer.m
 //
 
+#import <Foundation/Foundation.h>
 #import "sbcustomizer.h"
 #import "remote_objc.h"
 #import "../TaskRop/RemoteCall.h"
@@ -187,20 +188,52 @@ static uint64_t find_icon_in_array_by_bundle(uint64_t icons, uint64_t listView,
     return 0;
 }
 
+// SBIconListModel exposes the same mutation selectors on every page model, so
+// re-probing them per icon move (r_responds is a remote round trip) re-learns a
+// class-wide fact ~5 times per move. Cache the resolved selector for the
+// duration of an arrange. gIconCapsCached gates the cache to the arrange path,
+// which touches a single model class; the dock path -- which mixes page and dock
+// models -- leaves it off and keeps probing per call, so a cached selector is
+// never sent to a model of a different class that may not implement it.
+static bool gIconCapsCached = false;
+static int gRemoveSel = -1;   // 0 removeIcon:, 1 removeIconAtIndex:, 2 unsupported
+static int gInsertSel = -1;   // 0 insertIcon:atIndex:, 1 addIcon:, 2 unsupported
+
+static void reset_icon_mutation_caps(void) { gRemoveSel = -1; gInsertSel = -1; }
+
+static int remove_sel_for(uint64_t model)
+{
+    if (gIconCapsCached && gRemoveSel >= 0) return gRemoveSel;
+    int sel = r_responds(model, "removeIcon:") ? 0
+            : r_responds(model, "removeIconAtIndex:") ? 1 : 2;
+    if (gIconCapsCached) gRemoveSel = sel;
+    return sel;
+}
+
+static int insert_sel_for(uint64_t model)
+{
+    if (gIconCapsCached && gInsertSel >= 0) return gInsertSel;
+    int sel = r_responds(model, "insertIcon:atIndex:") ? 0
+            : r_responds(model, "addIcon:") ? 1 : 2;
+    if (gIconCapsCached) gInsertSel = sel;
+    return sel;
+}
+
 static bool model_can_remove(uint64_t model)
 {
-    return r_responds(model, "removeIcon:") || r_responds(model, "removeIconAtIndex:");
+    return remove_sel_for(model) != 2;
 }
 
 static bool model_can_insert(uint64_t model)
 {
-    return r_responds(model, "insertIcon:atIndex:") || r_responds(model, "addIcon:");
+    return insert_sel_for(model) != 2;
 }
 
 static bool remove_icon_from_model(uint64_t model, uint64_t index, uint64_t icon)
 {
-    if (!model_can_remove(model)) return false;
-    if (r_responds(model, "removeIcon:")) {
+    int sel = remove_sel_for(model);
+    if (sel == 2) return false;
+    if (sel == 0) {
         r_msg2_main(model, "removeIcon:", icon, 0, 0, 0);
     } else {
         r_msg2_main(model, "removeIconAtIndex:", index, 0, 0, 0);
@@ -210,8 +243,9 @@ static bool remove_icon_from_model(uint64_t model, uint64_t index, uint64_t icon
 
 static bool insert_icon_into_model(uint64_t model, uint64_t index, uint64_t icon)
 {
-    if (!model_can_insert(model)) return false;
-    if (r_responds(model, "insertIcon:atIndex:")) {
+    int sel = insert_sel_for(model);
+    if (sel == 2) return false;
+    if (sel == 0) {
         r_msg2_main(model, "insertIcon:atIndex:", icon, index, 0, 0);
     } else {
         r_msg2_main(model, "addIcon:", icon, 0, 0, 0);
@@ -544,11 +578,43 @@ static uint64_t icon_array_count_transient(uint64_t model)
     return r_msg2_main(icons, "count", 0, 0, 0, 0);
 }
 
+// Per-arrange cache of page list views. iconListViewAtIndex: returns the SAME
+// list view across icon mutations -- only listView.model is rebuilt -- so once
+// we know the view for a page we can skip re-resolving it and re-fetch only the
+// model. page_model_at is called ~5x per icon move and dominated the arrange
+// cost (~35-40%). Keyed on rootFolder so a different controller can't reuse a
+// stale entry; a nil model triggers a one-shot re-resolve in case a view really
+// did get torn down. reset_page_view_cache() clears it at each arrange entry.
+#define SBC_PAGE_VIEW_CACHE_MAX 64
+static uint64_t gPageViewCache[SBC_PAGE_VIEW_CACHE_MAX];
+static uint64_t gPageViewCacheRoot;
+
+static void reset_page_view_cache(uint64_t rootFolder)
+{
+    memset(gPageViewCache, 0, sizeof(gPageViewCache));
+    gPageViewCacheRoot = rootFolder;
+}
+
 static uint64_t page_model_at(uint64_t rootFolder, uint64_t page)
 {
-    uint64_t listView = r_msg2_main(rootFolder, "iconListViewAtIndex:", page, 0, 0, 0);
+    bool cacheable = (rootFolder == gPageViewCacheRoot &&
+                      page < SBC_PAGE_VIEW_CACHE_MAX);
+    uint64_t listView = cacheable ? gPageViewCache[page] : 0;
+    if (!r_is_objc_ptr(listView)) {
+        listView = r_msg2_main(rootFolder, "iconListViewAtIndex:", page, 0, 0, 0);
+        if (cacheable) gPageViewCache[page] = listView;
+    }
     if (!r_is_objc_ptr(listView)) return 0;
-    return r_msg2_main(listView, "model", 0, 0, 0, 0);
+    uint64_t model = r_msg2_main(listView, "model", 0, 0, 0, 0);
+    if (!r_is_objc_ptr(model) && cacheable) {
+        // Cached view no longer yields a model -- re-resolve once and retry.
+        gPageViewCache[page] = 0;
+        listView = r_msg2_main(rootFolder, "iconListViewAtIndex:", page, 0, 0, 0);
+        if (!r_is_objc_ptr(listView)) return 0;
+        gPageViewCache[page] = listView;
+        model = r_msg2_main(listView, "model", 0, 0, 0, 0);
+    }
+    return model;
 }
 
 static uint64_t icon_at_index_transient(uint64_t model, uint64_t index)
@@ -619,11 +685,49 @@ static bool move_icon_between_pages(uint64_t rootFolder,
     return false;
 }
 
-static int rebalance_page_models(uint64_t rootFolder, uint64_t count,
-                                 int firstPageIcons, int otherPageIcons)
+// Fast move: remove + re-resolve destination + insert, WITHOUT the two
+// wait_for_page_count settles move_icon_between_pages does per move. Those
+// settles are ~6 remote round trips each move, re-reading a count the caller
+// already tracks; the arrange verifies each page's final count once instead (see
+// rebalance_impl) and falls back to the settling path if that check ever fails.
+// The destination re-resolve is kept -- removal can rebuild the destination page
+// model -- and a failed insert still restores the icon to the source page.
+static bool move_icon_fast(uint64_t rootFolder,
+                           uint64_t sourcePage, uint64_t sourceIndex,
+                           uint64_t destinationPage, uint64_t destinationIndex,
+                           uint64_t icon, const char *tag)
+{
+    uint64_t sourceModel = page_model_at(rootFolder, sourcePage);
+    if (!r_is_objc_ptr(sourceModel) || !r_is_objc_ptr(icon)) {
+        printf("[SBC:MOVE] %s unsupported page mutation\n", tag);
+        return false;
+    }
+    if (!remove_icon_from_model(sourceModel, sourceIndex, icon)) return false;
+    uint64_t destinationModel = page_model_at(rootFolder, destinationPage);
+    if (!r_is_objc_ptr(destinationModel) ||
+        !insert_icon_into_model(destinationModel, destinationIndex, icon)) {
+        printf("[SBC:MOVE] %s insertion failed; restoring source page\n", tag);
+        sourceModel = page_model_at(rootFolder, sourcePage);
+        insert_icon_into_model(sourceModel, sourceIndex, icon);
+        return false;
+    }
+    return true;
+}
+
+// fast=true drops the per-move settles and verifies each page's final count once.
+// If that single check ever disagrees with the tracked count, the whole arrange
+// is re-run with fast=false -- move_icon_between_pages settling every move --
+// which re-reads live counts and self-corrects. So a surprise costs a slow
+// re-run, never a wrong arrangement.
+static int rebalance_impl(uint64_t rootFolder, uint64_t count,
+                          int firstPageIcons, int otherPageIcons, bool fast)
 {
     int moved = 0;
     bool failed = false;
+    reset_page_view_cache(rootFolder);
+    // Donor cursor, carried across pages -- see the fill loop below.
+    uint64_t donorPage = 0;
+    uint64_t donorCount = UINT64_MAX;
     for (uint64_t page = 0; page + 1 < count; page++) {
         uint64_t model = page_model_at(rootFolder, page);
         if (!r_is_objc_ptr(model)) continue;
@@ -638,16 +742,31 @@ static int rebalance_page_models(uint64_t rootFolder, uint64_t count,
 
         // Push overflow forward. Taking the last icon and inserting it at
         // index zero preserves the original order of the overflow block.
+        //
+        // destinationCount is carried across iterations: every successful move
+        // inserts exactly one icon into page+1, so re-reading it costs four
+        // remote round trips to learn a number we already know.
+        uint64_t destinationCount = UINT64_MAX;
         while (current > desired) {
             model = page_model_at(rootFolder, page);
             uint64_t iconIndex = current - 1;
             uint64_t icon = icon_at_index_transient(model, iconIndex);
-            uint64_t destinationCount = icon_array_count_transient(
-                page_model_at(rootFolder, page + 1));
-            bool didMove = r_is_objc_ptr(icon) &&
-                move_icon_between_pages(rootFolder, page, iconIndex,
-                                        page + 1, 0, current, destinationCount,
-                                        icon, "page overflow");
+            bool didMove;
+            if (fast) {
+                didMove = r_is_objc_ptr(icon) &&
+                    move_icon_fast(rootFolder, page, iconIndex, page + 1, 0,
+                                   icon, "page overflow");
+            } else {
+                if (destinationCount == UINT64_MAX) {
+                    destinationCount = icon_array_count_transient(
+                        page_model_at(rootFolder, page + 1));
+                }
+                didMove = r_is_objc_ptr(icon) &&
+                    move_icon_between_pages(rootFolder, page, iconIndex,
+                                            page + 1, 0, current, destinationCount,
+                                            icon, "page overflow");
+                destinationCount++;
+            }
             if (!didMove) {
                 return -1;
             }
@@ -657,33 +776,76 @@ static int rebalance_page_models(uint64_t rootFolder, uint64_t count,
 
         // Fill a short page from the first non-empty later page. This also
         // closes gaps when SpringBoard has left an empty intermediate page.
+        //
+        // donorPage/donorCount persist across both this loop and the outer page
+        // loop. The scan used to restart at page+1 for every single icon, so
+        // filling a 25-icon page whose donor sat four pages away re-walked those
+        // four pages 25 times over -- and each step of that walk is four remote
+        // round trips. Nothing in this function ever puts icons back into a page
+        // between `page` and `donorPage`, so once the scan has passed a page it
+        // cannot become non-empty again and rescanning it can only confirm what
+        // is already known.
         while (current < desired) {
-            uint64_t donorPage = page + 1;
-            uint64_t donorCount = UINT64_MAX;
+            if (donorPage <= page) {
+                donorPage = page + 1;
+                donorCount = UINT64_MAX;
+            }
             while (donorPage < count) {
-                uint64_t donorModel = page_model_at(rootFolder, donorPage);
-                donorCount = icon_array_count_transient(donorModel);
+                if (donorCount == UINT64_MAX) {
+                    donorCount = icon_array_count_transient(
+                        page_model_at(rootFolder, donorPage));
+                }
                 if (donorCount != UINT64_MAX && donorCount > 0) break;
                 donorPage++;
+                donorCount = UINT64_MAX;
             }
             if (donorPage >= count) break;
-            model = page_model_at(rootFolder, page);
             uint64_t donorModel = page_model_at(rootFolder, donorPage);
             uint64_t icon = icon_at_index_transient(donorModel, 0);
-            bool didMove = r_is_objc_ptr(icon) &&
-                move_icon_between_pages(rootFolder, donorPage, 0,
-                                        page, current, donorCount, current,
-                                        icon, "page fill");
+            bool didMove;
+            if (fast) {
+                didMove = r_is_objc_ptr(icon) &&
+                    move_icon_fast(rootFolder, donorPage, 0, page, current,
+                                   icon, "page fill");
+            } else {
+                didMove = r_is_objc_ptr(icon) &&
+                    move_icon_between_pages(rootFolder, donorPage, 0,
+                                            page, current, donorCount, current,
+                                            icon, "page fill");
+            }
             if (!didMove) {
                 return -1;
             }
             moved++;
             current++;
+            donorCount--;
         }
+
+        // Batch verify: one settle per page replaces the two-per-move settles.
+        // On this path counts update synchronously, so a mismatch means a
+        // mutation silently missed -- re-run the whole arrange with per-move
+        // verification, which re-reads live counts and self-corrects.
+        if (fast) {
+            uint64_t verifyCount = wait_for_page_count(rootFolder, page, current);
+            if (verifyCount != current) {
+                printf("[SBC:ARRANGE] page[%llu] batch verify mismatch "
+                       "(expected %llu got %llu); re-running with per-move "
+                       "verification\n", page, current, verifyCount);
+                return rebalance_impl(rootFolder, count, firstPageIcons,
+                                      otherPageIcons, false);
+            }
+        }
+
         printf("[SBC:ARRANGE] page[%llu] icons %llu -> %llu target=%llu\n",
                page, before, current == UINT64_MAX ? 0 : current, desired);
     }
     return failed ? -1 : moved;
+}
+
+static int rebalance_page_models(uint64_t rootFolder, uint64_t count,
+                                 int firstPageIcons, int otherPageIcons)
+{
+    return rebalance_impl(rootFolder, count, firstPageIcons, otherPageIcons, true);
 }
 
 static bool arrange_homescreen_pages(uint64_t iconCtrl, int preferredCols,
@@ -721,8 +883,20 @@ static bool arrange_homescreen_pages(uint64_t iconCtrl, int preferredCols,
     }
     count = r_msg2_main(rootFolder, "iconListViewCount", 0, 0, 0, 0);
     limit = count < 64 ? count : 64;
+    // The rebalance is by far the most expensive part of an SBC apply -- each
+    // icon move is a sequence of synchronous main-thread RemoteCalls. Report the
+    // real cost rather than leaving it to be guessed at.
+    r_perf_reset();
+    // Cache the icon-list mutation selectors for the arrange: every page model is
+    // the same class, so probing removeIcon:/insertIcon:atIndex: support once and
+    // reusing it saves ~5 remote round trips per icon move. Scoped to the arrange
+    // via gIconCapsCached so the dock path keeps probing per call.
+    reset_icon_mutation_caps();
+    gIconCapsCached = true;
     int moved = rebalance_page_models(rootFolder, limit,
                                       firstPageIcons, otherPageIcons);
+    gIconCapsCached = false;
+    r_perf_report("SBC arrange rebalance");
 
     // Trigger visual refresh only after all reads and mutations are finished.
     // Running this inside the capacity loop can asynchronously replace the

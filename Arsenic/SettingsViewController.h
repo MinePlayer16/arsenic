@@ -5,6 +5,13 @@
 
 #import <UIKit/UIKit.h>
 
+void settings_park_krw_filter_for_background(void);
+
+extern NSString * const kSettingsA18ExploitPath;
+extern NSString * const kSettingsA18Interleave;
+extern NSString * const kSettingsA18MemoryShaping;
+extern NSString * const kSettingsA18BoundedSearch;
+extern NSString * const kSettingsRemoteSettleMode;
 extern NSString * const kSettingsAutoRunKexploit;
 extern NSString * const kSettingsRunSandboxEscape;
 extern NSString * const kSettingsRunPatchSandboxExt;
@@ -101,6 +108,8 @@ extern NSString * const kSettingsMagsafeEnabled;
 extern NSString * const kSettingsNotweaficationsEnabled;
 
 extern NSString * const kSettingsSpeculumLiteEnabled;
+
+extern NSString * const kSettingsActionSwitchEnabled;
 
 extern NSString * const kSettingsExperimentalTweaksEnabled;
 

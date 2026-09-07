@@ -126,4 +126,11 @@ static dispatch_source_t g_sigterm_source;
     settings_best_effort_termination_cleanup("applicationWillTerminate");
 }
 
+- (void)applicationDidEnterBackground:(UIApplication *)application {
+    // iOS frequently kills a backgrounded app without ever calling
+    // applicationWillTerminate, so park the KRW filter here too. Cheap (one
+    // setsockopt) and reversible — the session keeps working on return.
+    settings_park_krw_filter_for_background();
+}
+
 @end

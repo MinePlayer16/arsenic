@@ -11,6 +11,7 @@
 #import "../SettingsViewController.h"
 #import "../tweaks/RepoTweaks.h"
 #import "MainTabBarController.h"
+#import "PresetManager.h"
 
 static NSString * const kPkgCellID    = @"PkgCell";
 static NSString * const kSearchCellID = @"SearchPkgCell";
@@ -64,6 +65,10 @@ typedef NS_ENUM(NSInteger, PackagesSection) {
     self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeAlways;
     self.navigationController.navigationBar.prefersLargeTitles = YES;
     self.searchText = @"";
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Presets" 
+                                                                             style:UIBarButtonItemStylePlain 
+                                                                            target:self
+                                                                    action:@selector(presetButtonTapped:)];
 
     [self refreshCatalog];
 
@@ -342,6 +347,112 @@ typedef NS_ENUM(NSInteger, PackagesSection) {
     }
     PackageDetailViewController *detail = [[PackageDetailViewController alloc] initWithPackage:pkg];
     [self.navigationController pushViewController:detail animated:YES];
+}
+
+#pragma mark - Presets Menu
+
+- (void)presetButtonTapped:(UIBarButtonItem *)sender
+{
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Queue Presets"
+                                                                   message:@"Save or switch your active tweaks and configuration presets."
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Save Current Setup as Preset..."
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction * _Nonnull action) {
+        [self promptSavePreset];
+    }]];
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Load Preset..."
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction * _Nonnull action) {
+        [self showLoadPresetSheet];
+    }]];
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Delete a Preset..."
+                                              style:UIAlertActionStyleDestructive
+                                            handler:^(UIAlertAction * _Nonnull action) {
+        [self showDeletePresetSheet];
+    }]];
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+
+    if (sheet.popoverPresentationController) {
+        sheet.popoverPresentationController.barButtonItem = sender;
+    }
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)promptSavePreset
+{
+    UIAlertController *prompt = [UIAlertController alertControllerWithTitle:@"Save Preset"
+                                                                    message:@"Enter a name for this tweak preset:"
+                                                             preferredStyle:UIAlertControllerStyleAlert];
+
+    [prompt addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+        textField.placeholder = @"e.g. Battery Saver, Minimal, Full Setup";
+    }];
+
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Save"
+                                               style:UIAlertActionStyleDefault
+                                             handler:^(UIAlertAction * _Nonnull action) {
+        NSString *name = prompt.textFields.firstObject.text;
+        if (name.length > 0) {
+            [[PresetManager sharedManager] saveCurrentPresetNamed:name];
+        }
+    }]];
+
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:prompt animated:YES completion:nil];
+}
+
+- (void)showLoadPresetSheet
+{
+    NSArray<NSDictionary *> *presets = [[PresetManager sharedManager] allPresets];
+    if (presets.count == 0) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"No Presets"
+                                                                       message:@"No saved presets found. Save your current queue first."
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+        return;
+    }
+
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Load Preset"
+                                                                   message:@"Select a preset to load into the queue:"
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+
+    for (NSDictionary *preset in presets) {
+        NSString *name = preset[@"name"];
+        [sheet addAction:[UIAlertAction actionWithTitle:name style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [[PresetManager sharedManager] applyPresetNamed:name];
+            [self refreshCatalog];
+            [self.tableView reloadData];
+        }]];
+    }
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)showDeletePresetSheet
+{
+    NSArray<NSDictionary *> *presets = [[PresetManager sharedManager] allPresets];
+    if (presets.count == 0) return;
+
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Delete Preset"
+                                                                   message:@"Choose a preset to remove:"
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+
+    for (NSDictionary *preset in presets) {
+        NSString *name = preset[@"name"];
+        [sheet addAction:[UIAlertAction actionWithTitle:name style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+            [[PresetManager sharedManager] deletePresetNamed:name];
+        }]];
+    }
+
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:sheet animated:YES completion:nil];
 }
 
 @end

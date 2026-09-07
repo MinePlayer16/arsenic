@@ -13,6 +13,7 @@ This fork focuses on updating my existing tweaks and add new ones.
 * **MagSafe Enabler Tweak:** It draws the native Magsafe animation regardless of the charging source. (Live-tweak)
 * **Notweafications Tweak:** Live-tweak to color the notifications according to their bundle id.
 * **Speculum Lite Tweak:** Live-tweak to customize the lockscreen, it supports various format tags, fonts, colors and the text labels can be positioned and scaled independently.
+* **Action Switch Tweak:** Tweak to emulate the Action Button using the Mute Switch, activates the flashlight.
 * **Kolbicz Tweaks:** Updated tweaks by Kolbicz
 
 ## Install (AltStore / SideStore)

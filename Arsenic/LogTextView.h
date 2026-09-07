@@ -27,6 +27,7 @@ void log_user(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 // On My iPhone → Arsenic.
 void log_session_begin(void);
 void log_session_end(void);
+void log_session_flush(void);  // flush + fsync, keep file open for background tail
 
 // Absolute path of the most recent session log file, or nil if none exist.
 NSString * _Nullable log_most_recent_session_path(void);

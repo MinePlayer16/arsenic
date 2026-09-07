@@ -2,7 +2,7 @@
 //  darksword_drag.m
 //
 //  Adapted from kolbicz/DarkSword-Tweaks override_drag_coefficient.m
-//  (licensed for use in projects including Arsenic per the upstream README).
+//  (licensed for use in projects including Cyanide/Arsenic per the upstream README).
 //
 //  Overrides _UIAnimationDragCoefficient in SpringBoard.
 //  Values below 1.0 make SpringBoard animations faster; above 1.0 slower.
@@ -11,6 +11,7 @@
 
 #import "darksword_drag.h"
 #import "../TaskRop/RemoteCall.h"
+#import "../LogTextView.h"   // mirror printf into the chain log
 
 #import <dlfcn.h>
 #import <stdint.h>

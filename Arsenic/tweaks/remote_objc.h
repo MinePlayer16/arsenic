@@ -46,6 +46,17 @@ bool     r_msg2_main_struct_ret(uint64_t obj, const char *selName,
                                 const void *a2, size_t a2Size,
                                 const void *a3, size_t a3Size);
 uint32_t r_settle_us(uint32_t usec);
+
+// Remote-message cost accounting. r_perf_report() prints cumulative counts and
+// the total time spent sleeping in settles; r_perf_reset() zeroes them, so an
+// individual tweak apply can be measured in isolation.
+// Settle policy: 0 = compatible (50 ms, as shipped), 1 = fast (5 ms),
+// 2 = async-only (settle only after a fire-and-forget main-thread dispatch).
+void r_settle_set_mode(int mode);
+int r_settle_get_mode(void);
+
+void r_perf_report(const char *label);
+void r_perf_reset(void);
 uint64_t r_perform_main(uint64_t obj, uint64_t sel, uint64_t object, bool wait);
 uint64_t r_cfstr(const char *s);
 uint64_t r_nsstr_retained(const char *s);

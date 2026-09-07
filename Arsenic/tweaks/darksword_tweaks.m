@@ -32,6 +32,30 @@ static uint64_t ds_object_class(uint64_t obj)
     return ds_try_msg0(obj, "class");
 }
 
+// Diagnostics only. Knowing which concrete classes SpringBoard hands back is
+// the difference between fixing the iOS 17 path and guessing at it.
+static void ds_read_class_name(uint64_t obj, char *out, size_t outLen)
+{
+    if (!out || outLen == 0) return;
+    snprintf(out, outLen, "%s", "<none>");
+    if (!r_is_objc_ptr(obj)) return;
+    uint64_t cls = r_dlsym_call(R_TIMEOUT, "object_getClass", obj, 0, 0, 0, 0, 0, 0, 0);
+    if (!r_is_objc_ptr(cls)) return;
+    uint64_t name = r_dlsym_call(R_TIMEOUT, "class_getName", cls, 0, 0, 0, 0, 0, 0, 0);
+    if (!name) return;
+    uint64_t heap = r_dlsym_call(R_TIMEOUT, "strdup", name, 0, 0, 0, 0, 0, 0, 0);
+    if (!heap) return;
+    if (remote_read(heap, out, outLen - 1)) out[outLen - 1] = '\0';
+    r_free(heap);
+}
+
+static void ds_log_target(const char *label, uint64_t obj)
+{
+    char cls[96];
+    ds_read_class_name(obj, cls, sizeof(cls));
+    printf("[DST:APPLIB]   %-24s obj=0x%llx class=%s\n", label, obj, cls);
+}
+
 static uint64_t ds_resolve_ivar_target(uint64_t obj, uint64_t cls, const char *name)
 {
     if (!r_is_objc_ptr(obj) || !r_is_objc_ptr(cls) || !name) return 0;
@@ -124,7 +148,10 @@ static bool ds_disable_app_library_flags_on_target(uint64_t obj, const char *tag
 
     bool changed = false;
     for (size_t i = 0; i < sizeof(properties) / sizeof(properties[0]); i++) {
-        if (!r_responds_main(obj, properties[i].setter)) continue;
+        if (!r_responds_main(obj, properties[i].setter)) {
+            printf("[DST:APPLIB] %s %s absent\n", tag, properties[i].setter);
+            continue;
+        }
         r_msg2_main(obj, properties[i].setter, 0, 0, 0, 0);
         bool verified = !r_responds_main(obj, properties[i].getter) ||
                         r_msg2_main(obj, properties[i].getter, 0, 0, 0, 0) == 0;
@@ -144,7 +171,11 @@ static bool ds_disable_app_library_flags_on_target(uint64_t obj, const char *tag
         NULL,
     };
     for (int i = 0; ivars[i]; i++) {
-        changed |= ds_poke_bool_ivar(obj, cls, ivars[i], false);
+        if (!ds_poke_bool_ivar(obj, cls, ivars[i], false)) {
+            printf("[DST:APPLIB] %s ivar %s unresolved\n", tag, ivars[i]);
+        } else {
+            changed = true;
+        }
     }
     return changed;
 }
@@ -185,10 +216,14 @@ static bool ds_set_trailing_controller(uint64_t obj, uint64_t value, const char 
         return true;
     }
 
-    uint64_t cls = ds_object_class(obj);
-    bool ok = ds_poke_pointer_ivar(obj, cls, "_trailingCustomViewController", value);
-    if (ok) printf("[DST:APPLIB] %s via _trailingCustomViewController\n", tag);
-    return ok;
+    // No ivar fallback. Writing _trailingCustomViewController directly skips the
+    // setter's teardown, so it cannot remove a page that has already been built
+    // -- proven on iOS 17, where the poke "succeeded" on both the root folder
+    // controller and its view while the App Library stayed on screen -- and it
+    // overwrites a strong reference without releasing it. The manager's real
+    // setter above is what does the work; the gate hooks handle iOS 17.
+    printf("[DST:APPLIB] %s has no trailing-controller setter; skipped\n", tag);
+    return false;
 }
 
 static bool ds_clear_overlay_library_controller(uint64_t mgr)
@@ -230,7 +265,11 @@ static bool ds_force_object_method_nil(uint64_t obj,
         ? r_dlsym_call(R_TIMEOUT, "method_getImplementation",
                        falseMethod, 0, 0, 0, 0, 0, 0, 0)
         : 0;
-    if (!method || !falseIMP) return false;
+    if (!method || !falseIMP) {
+        printf("[DST:APPLIB] hook %s.%s unavailable (method=0x%llx falseIMP=0x%llx)\n",
+               className, selectorName, method, falseIMP);
+        return false;
+    }
 
     uint64_t oldIMP = r_dlsym_call(
         R_TIMEOUT, "method_setImplementation",
@@ -239,6 +278,41 @@ static bool ds_force_object_method_nil(uint64_t obj,
     printf("[DST:APPLIB] hooked %s.%s oldIMP=0x%llx value=0x%llx\n",
            className, selectorName, oldIMP, value);
     return oldIMP != 0 && value == 0;
+}
+
+// Replace a zero-argument method with -[NSObject isProxy], which returns NO.
+// For BOOL getters that reads as NO; for an integer count it reads as 0. Used on
+// iOS 17, where the App Library page is not controlled by any writable property
+// -- the class dump showed getters with no matching setters -- so the only way
+// to switch it off is to change what the getters answer.
+static bool ds_force_method_zero(const char *className, const char *selectorName)
+{
+    uint64_t cls = r_class(className);
+    uint64_t selector = r_sel(selectorName);
+    uint64_t NSObject = r_class("NSObject");
+    uint64_t falseSelector = r_sel("isProxy");
+    if (!r_is_objc_ptr(cls) || !selector || !r_is_objc_ptr(NSObject) || !falseSelector) {
+        printf("[DST:APPLIB] hook %s.%s: class/selector unavailable\n",
+               className, selectorName);
+        return false;
+    }
+    uint64_t method = r_dlsym_call(R_TIMEOUT, "class_getInstanceMethod",
+                                   cls, selector, 0, 0, 0, 0, 0, 0);
+    uint64_t falseMethod = r_dlsym_call(R_TIMEOUT, "class_getInstanceMethod",
+                                        NSObject, falseSelector, 0, 0, 0, 0, 0, 0);
+    uint64_t falseIMP = falseMethod
+        ? r_dlsym_call(R_TIMEOUT, "method_getImplementation",
+                       falseMethod, 0, 0, 0, 0, 0, 0, 0)
+        : 0;
+    if (!method || !falseIMP) {
+        printf("[DST:APPLIB] hook %s.%s unavailable (method=0x%llx falseIMP=0x%llx)\n",
+               className, selectorName, method, falseIMP);
+        return false;
+    }
+    uint64_t oldIMP = r_dlsym_call(R_TIMEOUT, "method_setImplementation",
+                                   method, falseIMP, 0, 0, 0, 0, 0, 0);
+    printf("[DST:APPLIB] hooked %s.%s oldIMP=0x%llx\n", className, selectorName, oldIMP);
+    return oldIMP != 0;
 }
 
 static bool ds_disable_app_library_singular_path(uint64_t mgr,
@@ -270,12 +344,20 @@ static bool ds_disable_app_library_singular_path(uint64_t mgr,
         printf("[DST:APPLIB] iconManager overscroll-library property unavailable\n");
     }
 
-    flagsOK |= ds_disable_app_library_flags_on_target(iconController, "iconController");
+    // On iOS 17 none of these five setters exists on any class, and the only
+    // ivar that resolves is the manager's _canPresentOverscrollLibraryForPage-
+    // Transition, already handled above. Sweeping the other five targets costs
+    // ~60 remote round trips to learn nothing, so restrict it to the manager
+    // there. Later versions keep the full sweep.
+    bool ios17 = ds_ios_major_version() == 17;
     flagsOK |= ds_disable_app_library_flags_on_target(mgr, "iconManager");
-    flagsOK |= ds_disable_app_library_flags_on_target(iconModel, "iconModel");
-    flagsOK |= ds_disable_app_library_flags_on_target(managerConfig, "iconManager.configuration");
-    flagsOK |= ds_disable_app_library_flags_on_target(rootFC, "rootFolderController");
-    flagsOK |= ds_disable_app_library_flags_on_target(rootView, "rootFolderView");
+    if (!ios17) {
+        flagsOK |= ds_disable_app_library_flags_on_target(iconController, "iconController");
+        flagsOK |= ds_disable_app_library_flags_on_target(iconModel, "iconModel");
+        flagsOK |= ds_disable_app_library_flags_on_target(managerConfig, "iconManager.configuration");
+        flagsOK |= ds_disable_app_library_flags_on_target(rootFC, "rootFolderController");
+        flagsOK |= ds_disable_app_library_flags_on_target(rootView, "rootFolderView");
+    }
 
     // Exact iOS 17 SBHIconManager state from the 17.5 SpringBoardHome
     // headers. Clear an in-flight/visible library before detaching the
@@ -393,16 +475,56 @@ bool darksword_tweak_disable_app_library_in_session(void)
     bool ok = false;
     if (ds_ios_major_version() == 17) {
         printf("[DST:APPLIB] using iOS 17 singular controller path\n");
+        ds_log_target("SBIconController", ctrl);
+        ds_log_target("iconManager", mgr);
+        ds_log_target("iconManager.iconController", ds_try_msg0(mgr, "iconController"));
+        ds_log_target("iconManager.iconModel", ds_try_msg0(mgr, "iconModel"));
+        ds_log_target("iconManager.configuration", ds_try_msg0(mgr, "configuration"));
+        ds_log_target("rootFolderController", rootFC);
+        ds_log_target("rootFolderView", rootView);
+
         // SBIconController is SBHIconManager's delegate on iOS 17. Stop the
-        // manager from sourcing library controllers without changing
-        // -isAppLibraryAllowed, which is also used by dismissal/state logic.
+        // manager from sourcing library controllers.
         bool librarySourceHookOK = ds_force_object_method_nil(
             ctrl, "SBIconController", "libraryViewControllersForIconManager:", mgr);
+
+        // A class dump of this device's SpringBoard (iOS 17.3.1) settled what
+        // the previous approach got wrong. None of setAppLibraryAllowed:,
+        // setAllowsAppLibrary:, setAppLibraryEnabled:, setLibraryEnabled: or
+        // setShowsAppLibrary: exists anywhere on iOS 17, and neither
+        // SBRootFolderController nor SBRootFolderView has a
+        // setTrailingCustomViewController: -- the old code fell back to writing
+        // the ivar directly, which cannot tear down a page already built.
+        //
+        // What does exist are getters with no setters, so the way to switch the
+        // page off is to change the answers:
+        //   SBIconController -isAppLibrarySupported     the master gate
+        //   SBIconController -isAppLibraryAllowed       (on the controller, NOT
+        //                                                the manager, which is
+        //                                                where it was looked for)
+        //   SBRootFolderView -_trailingCustomPageCount  the page itself
+        //   SBRootFolderView -_trailingCustomViewShouldBeIndicatedInPageControl
+        //                                               the page-control dot
+        int gateHooks = 0;
+        gateHooks += ds_force_method_zero("SBIconController", "isAppLibrarySupported");
+        gateHooks += ds_force_method_zero("SBIconController", "isAppLibraryAllowed");
+        gateHooks += ds_force_method_zero("SBRootFolderView", "_trailingCustomPageCount");
+        gateHooks += ds_force_method_zero("SBRootFolderView",
+                                          "_trailingCustomViewShouldBeIndicatedInPageControl");
+        printf("[DST:APPLIB] iOS 17 gate hooks installed=%d/4\n", gateHooks);
+
         ok = ds_disable_app_library_singular_path(mgr, rootFC, rootView);
-        ok &= librarySourceHookOK;
-        if (ok) ds_refresh_root_folder_after_app_library_change(rootFC, rootView);
-        printf("[DST:APPLIB] iOS 17 library source hook=%d result=%d\n",
-               librarySourceHookOK, ok);
+        ok = ok || gateHooks > 0;
+
+        // The hook is deliberately NOT folded into the result. It is one of
+        // three independent things this path attempts, and ANDing it in meant a
+        // path that had actually worked still reported failure. Log it instead.
+        if (ok || librarySourceHookOK) {
+            ds_refresh_root_folder_after_app_library_change(rootFC, rootView);
+        }
+        printf("[DST:APPLIB] iOS 17 library source hook=%d gates=%d singular=%d\n",
+               librarySourceHookOK, gateHooks, ok);
+        ok = ok || librarySourceHookOK;
         printf("[DST:APPLIB] result=%d\n", ok);
         return ok;
     }

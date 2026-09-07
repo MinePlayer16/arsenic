@@ -9,6 +9,7 @@
 #import "remote_objc.h"
 #import "../TaskRop/RemoteCall.h"
 #import "../VPhoneDebug.h"
+#import "../LogTextView.h"   // mirror printf into the chain log
 
 #import <sys/socket.h>
 #import <sys/un.h>

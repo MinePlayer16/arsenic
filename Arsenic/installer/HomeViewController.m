@@ -263,15 +263,19 @@ static const CGFloat kMargin = 20.0;
 - (UIView *)buildWhatsNew
 {
     UIView *card = [self card];
-    UIStackView *s = [self vstackInCard:card spacing:14.0];
+    UIStackView *s = [self vstackInCard:card spacing:16.0];
 
     UILabel *header = [self sectionHeader:@"What's New"];
     [s addArrangedSubview:header];
 
-    [s addArrangedSubview:[self compactRow:@"Speculum Lite: Instantaneous refresh on wake"
-                                     icon:@"clock.fill" color:UIColor.systemGreenColor]];
-    [s addArrangedSubview:[self compactRow:@"Notweafications: Customize colors for any app notification"
-                                     icon:@"paintpalette.fill" color:UIColor.systemRedColor]];
+    [s addArrangedSubview:[self compactRow:@"RemoteCall: Updated by @Kolbicz."
+                                     icon:@"gear" color:UIColor.systemGreenColor]];
+    [s addArrangedSubview:[self compactRow:@"Arsenic: Queue Presets added in packages tab."
+                                     icon:@"gear" color:UIColor.systemGreenColor]];
+    [s addArrangedSubview:[self compactRow:@"Speculum Lite: You can now save your favourite designs as Presets."
+                                     icon:@"clock.fill" color:UIColor.systemOrangeColor]];
+    [s addArrangedSubview:[self compactRow:@"Action Switch: Tweak that emulates the Action Button using the Mute Switch."
+                                     icon:@"flashlight.on.fill" color:UIColor.systemYellowColor]];
 
     return card;
 }
