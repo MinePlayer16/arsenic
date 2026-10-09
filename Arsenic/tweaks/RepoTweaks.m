@@ -18,7 +18,7 @@ extern uint64_t r_nsstr_retained(const char *str);
 
 static const NSUInteger kRepoTweaksMaxRepoBytes = 512 * 1024;
 static const NSUInteger kRepoTweaksMaxScriptBytes = 512 * 1024;
-static NSString * const kRepoTweaksDefaultRepoURL = @"https://0xjohnnydev.github.io/cyanide-repotweaks.json";
+static NSString * const kRepoTweaksDefaultRepoURL = @"https://raw.githubusercontent.com/MinePlayer16/MinePlayer16.github.io/refs/heads/main/repotweaks.json";
 static NSString * const kRepoTweaksDefaultReposSeedVersionKey = @"RepoTweaksDefaultReposSeedVersion";
 static NSString * const kRepoTweaksDefaultReposSeedVersion = @"4";
 static NSString * const kRepoTweaksHideHomeBarMaterialKitAssets =
