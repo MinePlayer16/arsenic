@@ -19,6 +19,7 @@ typedef struct {
     double explosionForce;
 } GravityLiteConfig;
 
+bool gravitylite_is_active(void);
 bool gravitylite_apply_in_session(GravityLiteConfig config);
 bool gravitylite_stop_in_session(void);
 bool gravitylite_explosion_in_session(double force);
