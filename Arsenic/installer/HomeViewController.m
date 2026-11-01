@@ -268,14 +268,16 @@ static const CGFloat kMargin = 20.0;
     UILabel *header = [self sectionHeader:@"What's New"];
     [s addArrangedSubview:header];
 
-    [s addArrangedSubview:[self compactRow:@"RemoteCall: Updated by @Kolbicz."
-                                     icon:@"gear" color:UIColor.systemGreenColor]];
-    [s addArrangedSubview:[self compactRow:@"Arsenic: Queue Presets added in packages tab."
-                                     icon:@"gear" color:UIColor.systemGreenColor]];
-    [s addArrangedSubview:[self compactRow:@"Speculum Lite: You can now save your favourite designs as Presets."
-                                     icon:@"clock.fill" color:UIColor.systemOrangeColor]];
-    [s addArrangedSubview:[self compactRow:@"Action Switch: Tweak that emulates the Action Button using the Mute Switch."
+    [s addArrangedSubview:[self compactRow:@"Arsenic Server"
+                                     icon:@"network" color:UIColor.systemBlueColor]];
+    [s addArrangedSubview:[self compactRow:@"Cylinder Lite: Effects as you scroll through your home screen."
+                                     icon:@"cube.transparent.fill" color:UIColor.systemCyanColor]];
+    [s addArrangedSubview:[self compactRow:@"Action Switch: You can now trigger shortcuts."
                                      icon:@"flashlight.on.fill" color:UIColor.systemYellowColor]];
+    [s addArrangedSubview:[self compactRow:@"Community Scripts: Browse and submit scripts on the community's repository."
+                                     icon:@"tray.and.arrow.down.fill" color:UIColor.systemBlueColor]];
+    [s addArrangedSubview:[self compactRow:@"Gravity Lite: v2.0"
+                                     icon:@"arrow.down.circle.fill" color:UIColor.systemGreenColor]];
 
     return card;
 }

@@ -107,30 +107,31 @@ static BOOL catalog_repo_script_requires_native_bridge(NSString *rawScript)
 // Mirrors of the private SettingsSection enum values in SettingsViewController.m
 // (kept in sync — must match the underlying section indices used for the
 // detail-mode SettingsViewController push).
-static const NSInteger kSecSBC              = 4;
-static const NSInteger kSecStatBar          = 5;
-static const NSInteger kSecNSBar            = 6;
-static const NSInteger kSecNiceBarLite      = 7;
-static const NSInteger kSecRSSI             = 8;
-static const NSInteger kSecTypeBanner       = 10;
-static const NSInteger kSecNotificationIsland = 11;
-static const NSInteger kSecPowercuff        = 12;
-static const NSInteger kSecDragCoefficient  = 14;
-static const NSInteger kSecLayoutExtras     = 15;
-static const NSInteger kSecNanoRegistry     = 16;
-static const NSInteger kSecSnowBoardLite    = 18;
-static const NSInteger kSecLiveWP           = 19;
-static const NSInteger kSecLocationSim      = 20;
-static const NSInteger kSecGravityLite      = 21;
-static const NSInteger kSecAppSwitcherGrid  = 22;
-static const NSInteger kSecIPADecryptor     = 23;
-static const NSInteger kSecFastLockXLite    = 24;
-static const NSInteger kSecQuickLoader      = 25;
-static const NSInteger kSecRepoTweaks       = 26;
-static const NSInteger kSecMagsafe          = 27;
-static const NSInteger kSecNotweafications  = 28;
-static const NSInteger kSecSpeculumLite     = 29;
-static const NSInteger kSecActionSwitch     = 30;
+static const NSInteger kSecSBC              = 5;
+static const NSInteger kSecStatBar          = 6;
+static const NSInteger kSecNSBar            = 7;
+static const NSInteger kSecNiceBarLite      = 8;
+static const NSInteger kSecRSSI             = 9;
+static const NSInteger kSecTypeBanner       = 11;
+static const NSInteger kSecNotificationIsland = 12;
+static const NSInteger kSecPowercuff        = 13;
+static const NSInteger kSecDragCoefficient  = 15;
+static const NSInteger kSecLayoutExtras     = 16;
+static const NSInteger kSecNanoRegistry     = 17;
+static const NSInteger kSecSnowBoardLite    = 19;
+static const NSInteger kSecLiveWP           = 20;
+static const NSInteger kSecLocationSim      = 21;
+static const NSInteger kSecGravityLite      = 22;
+static const NSInteger kSecAppSwitcherGrid  = 23;
+static const NSInteger kSecIPADecryptor     = 24;
+static const NSInteger kSecFastLockXLite    = 25;
+static const NSInteger kSecQuickLoader      = 26;
+static const NSInteger kSecRepoTweaks       = 27;
+static const NSInteger kSecMagsafe          = 28;
+static const NSInteger kSecNotweafications  = 29;
+static const NSInteger kSecSpeculumLite     = 30;
+static const NSInteger kSecActionSwitch     = 31;
+static const NSInteger kSecCylinderLite     = 32;
 
 + (BOOL)deviceHasMuteSwitch {
     struct utsname u = {0};
@@ -425,7 +426,7 @@ static const NSInteger kSecActionSwitch     = 30;
                                            name:@"Gravity Lite"
                                shortDescription:@"Make home-screen icons fall with physics"
                                 longDescription:@"Core RemoteCall-only port of Julio Verne's classic Gravity tweak for iOS 26. Applies UIDynamicAnimator gravity, collision bounds, bounce, friction, resistance, optional dock physics, accelerometer steering, shake pulses, restore, and an explosion pulse to the currently visible SpringBoard icon views.\n\nThis is not a full Substrate-style port. Activator/Home-button hooks, drag gestures, and preference-daemon notifications are intentionally left out. Use Settings to tune the core physics and the Restore button to reset the layout."
-                                        version:version
+                                        version:@"2.0"
                                          author:@"Julio Verne / zeroxjf"
                                        category:@"Home Screen"
                                      symbolName:@"arrow.down.circle.fill"
@@ -435,10 +436,8 @@ static const NSInteger kSecActionSwitch     = 30;
         gravityLite.settingsSection = kSecGravityLite;
         gravityLite.unstableWarning = @"Beta: RemoteCall-only physics can be reset by SpringBoard relayouts such as page swipes, rotations, folder transitions, or resprings. Use Restore Icon Layout if icons stay displaced.";
         gravityLite.knownIssues = @[
-            @"To disable, use the App Switcher to return to Arsenic and deactivate Gravity Lite. There is no other way to stop it right now.",
+            @"To disable, use the App Switcher to return to Arsenic and deactivate Gravity Lite.",
             @"Touch input does not register on displaced icons yet. Forwarding taps in this environment is a major WIP.",
-            @"Install is slow as hell. WIP. Arsenic has to capture every visible icon and widget before physics start.",
-            @"Page swipes, folder opens, or SpringBoard relayouts may stop the effect. Run Gravity again.",
         ];
 
         Package *appSwitcherGrid = [[Package alloc] initWithIdentifier:@"com.darksword.appswitchergrid"
@@ -513,8 +512,8 @@ static const NSInteger kSecActionSwitch     = 30;
         Package *actionSwitch = [[Package alloc] initWithIdentifier:@"com.arsenic.actionswitch"
                                            name:@"Action Switch"
                                shortDescription:@"Mute switch flashlight toggle"
-                                longDescription:@"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch."
-                                        version:@"1.0"
+                                longDescription:@"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch or run shortcuts."
+                                        version:@"2.0"
                                          author:@"Iggy05"
                                        category:@"System"
                                      symbolName:@"flashlight.on.fill"
@@ -526,6 +525,19 @@ static const NSInteger kSecActionSwitch     = 30;
           actionSwitch.installDisabledReason = muteswitchDisabledReason;
           actionSwitch.unstableWarning = @"⚠️ Install is disabled because your device doesn't have a Mute Switch.";
         }
+
+        Package *cylinderLite = [[Package alloc] initWithIdentifier:@"com.arsenic.cylinderlite"
+                                                       name:@"Cylinder Lite"
+                                           shortDescription:@"Page-scroll animations"
+                                            longDescription:@"RemoteCall-only port of Ryannair05's Cylinder tweak. Applies real time animations as you swipe between home screen pages."
+                                                    version:version
+                                                     author:@"rweichler/ Ryannair05 / Iggy05"
+                                                   category:@"Home Screen"
+                                                 symbolName:@"cube.transparent.fill"
+                                                       kind:PackageInstallKindToggle
+                                                 enabledKey:kSettingsCylinderLiteEnabled
+                                                      isNew:YES];
+        cylinderLite.settingsSection = kSecCylinderLite;
         
 
 #if ARSENIC_EXPERIMENTAL_TWEAKS_AVAILABLE
@@ -715,6 +727,7 @@ static const NSInteger kSecActionSwitch     = 30;
             notweafications,
             speculumLite,
             actionSwitch,
+            cylinderLite,
         ];
     });
     NSArray<Package *> *repoPackages = [self repoPackages];

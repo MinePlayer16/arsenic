@@ -8,6 +8,7 @@
 #import "ViewController.h"
 #import "LogTextView.h"
 #import "SettingsViewController.h"
+#import "installer/DarkSwordServer.h"
 #import "kexploit/kexploit_opa334.h"
 #import "kexploit/krw.h"
 #import "kexploit/kutils.h"
@@ -187,6 +188,12 @@ int escape_sbx_demo2_in_session(void) {
         return -1;
 
     printf("[SBX] Extension consumed (handle=%lld) — filesystem sandbox lifted.\n", handle);
+    
+    BOOL isServerEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kSettingsEnableDarkSwordServer]; // if Arsenic Server switch is on, it starts the server as soon as it escapes its sandbox.
+
+    if (isServerEnabled) {
+        start_darksword_server();
+    }
     return 0;
 }
 

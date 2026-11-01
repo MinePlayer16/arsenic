@@ -321,9 +321,56 @@ static UIColor *category_color(NSString *cat)
     [self.navigationController pushViewController:detail animated:YES];
 }
 
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    // ONLY allow swipe-to-delete if we are inside the local Community repository
+    return [self.repoURL isEqualToString:@"https://community.local/"];
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (editingStyle != UITableViewCellEditingStyleDelete) return;
+    
+    NSArray *tweaks = sources_tweaks_for_url(self.repoURL);
+    if (indexPath.row >= tweaks.count) return;
+    
+    NSDictionary *tweak = tweaks[indexPath.row];
+    NSString *tweakID = sources_string_or_empty(tweak[@"id"]);
+    if (tweakID.length == 0) return;
+    
+    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
+    
+    // stop the tweak and clear its local settings/script code
+    [d removeObjectForKey:repotweaks_enabled_defaults_key(self.repoURL, tweakID)];
+    [d removeObjectForKey:repotweaks_script_defaults_key(self.repoURL, tweakID)];
+    [d removeObjectForKey:repotweaks_values_defaults_key(self.repoURL, tweakID)];
+    repotweaks_cancel_tweak(self.repoURL, tweakID);
+    quickloader_clear_repo_tweak_if_matches(self.repoURL, tweakID);
+    
+    // remove it from the local community JSON cache
+    NSMutableDictionary *caches = [[sources_caches() mutableCopy] ?: @{} mutableCopy];
+    NSMutableDictionary *repoCache = [caches[self.repoURL] mutableCopy];
+    NSMutableArray *mutTweaks = [repoCache[@"tweaks"] mutableCopy];
+    
+    [mutTweaks removeObjectAtIndex:indexPath.row];
+    repoCache[@"tweaks"] = mutTweaks;
+    caches[self.repoURL] = repoCache;
+    
+    [d setObject:caches forKey:@"RepoTweaksCaches"];
+    [d synchronize];
+    
+    // delete from the table
+    [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
+    
+    // update the main sources tab
+    [[NSNotificationCenter defaultCenter] postNotificationName:RepoTweaksDidRefreshNotification object:nil];
+}
+
 @end
 
 #pragma mark - Sources list
+
+@interface CommunityScriptsViewController : UITableViewController
+@property (nonatomic, strong) NSArray *publicScripts;
+@end
 
 @interface SourcesViewController ()
 @property (nonatomic, copy) NSArray<NSString *> *urls;
@@ -342,6 +389,12 @@ static UIColor *category_color(NSString *cat)
     self.navigationController.navigationBar.prefersLargeTitles = YES;
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 72.0;
+
+    UIBarButtonItem *communityBtn = [[UIBarButtonItem alloc] initWithTitle:@"Community"
+                                                                     style:UIBarButtonItemStylePlain
+                                                                    target:self
+                                                                    action:@selector(showCommunityScripts)];
+    self.navigationItem.leftBarButtonItem = communityBtn;
 
     UIBarButtonItem *add = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
                                                                          target:self
@@ -372,6 +425,12 @@ static UIColor *category_color(NSString *cat)
                                                object:nil];
 }
 
+- (void)showCommunityScripts
+{
+    CommunityScriptsViewController *vc = [[CommunityScriptsViewController alloc] init];
+    [self.navigationController pushViewController:vc animated:YES];
+}
+
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
 
 - (void)openQuickLoader
@@ -396,9 +455,7 @@ static UIColor *category_color(NSString *cat)
 - (void)pullToRefresh
 {
     [self.refreshControl endRefreshing];
-    MainTabBarController *tab = (MainTabBarController *)self.tabBarController;
-    if ([tab respondsToSelector:@selector(showRefreshBanner)]) [tab showRefreshBanner];
-    repotweaks_refresh_all_sources(nil);
+    [self refreshAll];
 }
 
 - (void)sourcesDidRefresh:(NSNotification *)note
@@ -550,7 +607,31 @@ static UIColor *category_color(NSString *cat)
 
     dispatch_group_t group = dispatch_group_create();
     __block NSString *firstError = nil;
+    
     for (NSString *url in urls) {
+        // handle Community Scripts repo manually
+        if ([url isEqualToString:@"https://community.local/"]) {
+            NSArray *tweaks = sources_tweaks_for_url(url);
+            for (NSDictionary *tweak in tweaks) {
+                NSString *sURL = tweak[@"scriptURL"];
+                NSString *tID = tweak[@"id"];
+                if (sURL.length > 0 && tID.length > 0) {
+                    dispatch_group_enter(group);
+                    [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:sURL] completionHandler:^(NSData *d, NSURLResponse *r, NSError *e) {
+                        if (d && !e) {
+                            NSString *js = [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
+                            if (js) {
+                                [[NSUserDefaults standardUserDefaults] setObject:js forKey:repotweaks_script_defaults_key(url, tID)];
+                            }
+                        }
+                        dispatch_group_leave(group);
+                    }] resume];
+                }
+            }
+            continue; // skips the standard repo fetcher
+        }
+        
+        // standard repo fetcher
         dispatch_group_enter(group);
         repotweaks_refresh_repo(url, ^(BOOL success, NSString *message) {
             if (!success && firstError.length == 0) firstError = message;
@@ -559,6 +640,7 @@ static UIColor *category_color(NSString *cat)
     }
 
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+        [[NSUserDefaults standardUserDefaults] synchronize];
         [self reloadSources];
         [[NSNotificationCenter defaultCenter] postNotificationName:RepoTweaksDidRefreshNotification object:nil];
         if (firstError.length > 0) [self presentError:firstError];
@@ -733,6 +815,252 @@ static UIColor *category_color(NSString *cat)
     [d setObject:caches forKey:@"RepoTweaksCaches"];
     [d synchronize];
     [self reloadSources];
+}
+
+@end
+
+
+
+@implementation CommunityScriptsViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"Community Scripts";
+    self.tableView.rowHeight = UITableViewAutomaticDimension;
+    self.tableView.estimatedRowHeight = 68.0;
+
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd
+                                                                                           target:self
+                                                                                           action:@selector(promptSubmitScript)];
+    
+    UIRefreshControl *rc = [[UIRefreshControl alloc] init];
+    [rc addTarget:self action:@selector(fetchCatalog) forControlEvents:UIControlEventValueChanged];
+    self.refreshControl = rc;
+
+    [self fetchCatalog];
+}
+
+- (void)fetchCatalog {
+    [self.refreshControl beginRefreshing];
+    
+    NSURL *url = [NSURL URLWithString:@"https://raw.githubusercontent.com/MinePlayer16/MinePlayer16.github.io/refs/heads/main/community-repo.json"];
+    
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.refreshControl endRefreshing];
+        });
+        
+        if (data && !error) {
+            id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            NSArray *parsedScripts = nil;
+            
+            if ([json isKindOfClass:[NSDictionary class]] && [json[@"tweaks"] isKindOfClass:[NSArray class]]) {
+                parsedScripts = json[@"tweaks"];
+            } else if ([json isKindOfClass:[NSArray class]]) {
+                parsedScripts = json;
+            }
+            
+            if (parsedScripts) {
+                self.publicScripts = parsedScripts;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.tableView reloadData];
+                });
+            }
+        }
+    }];
+    [task resume];
+}
+
+#pragma mark - Table View Data Source
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return self.publicScripts.count;
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    static NSString *CellID = @"CommunityScriptCell";
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellID];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:CellID];
+    }
+    
+    NSDictionary *script = self.publicScripts[indexPath.row];
+    
+    UIListContentConfiguration *config = [UIListContentConfiguration subtitleCellConfiguration];
+    config.image = [UIImage systemImageNamed:script[@"symbol"] ?: @"bolt.fill"];
+    config.imageProperties.reservedLayoutSize = CGSizeMake(32.0, 32.0);
+    config.text = script[@"name"];
+    config.textProperties.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightSemibold];
+    
+    NSString *author = script[@"author"] ?: @"Unknown";
+    NSString *desc = script[@"description"] ?: @"No description";
+    config.secondaryText = [NSString stringWithFormat:@"by %@\n%@", author, desc];
+    config.secondaryTextProperties.numberOfLines = 2;
+    config.secondaryTextProperties.color = [UIColor secondaryLabelColor];
+    
+    cell.contentConfiguration = config;
+    
+    // checks if it's already installed locally
+    NSDictionary *localRepo = [self getLocalCommunityRepo];
+    NSArray *localTweaks = localRepo[@"tweaks"] ?: @[];
+    BOOL isInstalled = NO;
+    for (NSDictionary *t in localTweaks) {
+        if ([t[@"id"] isEqualToString:script[@"id"]]) {
+            isInstalled = YES;
+            break;
+        }
+    }
+    
+    if (isInstalled) {
+        UILabel *pill = [[UILabel alloc] init];
+        pill.text = @"ADDED";
+        pill.font = [UIFont systemFontOfSize:11.0 weight:UIFontWeightHeavy];
+        pill.textColor = UIColor.systemGreenColor;
+        pill.backgroundColor = [UIColor.systemGreenColor colorWithAlphaComponent:0.15];
+        pill.textAlignment = NSTextAlignmentCenter;
+        [pill sizeToFit];
+        CGRect f = pill.frame; f.size.width += 14.0; f.size.height = 22.0; pill.frame = f;
+        pill.layer.cornerRadius = f.size.height / 2.0; pill.layer.masksToBounds = YES;
+        cell.accessoryView = pill;
+    } else {
+        UIButton *addBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        [addBtn setTitle:@"GET" forState:UIControlStateNormal];
+        addBtn.titleLabel.font = [UIFont boldSystemFontOfSize:13];
+        addBtn.backgroundColor = [UIColor systemBlueColor];
+        [addBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        addBtn.layer.cornerRadius = 12;
+        addBtn.frame = CGRectMake(0, 0, 50, 26);
+        addBtn.tag = indexPath.row;
+        [addBtn addTarget:self action:@selector(addScriptTapped:) forControlEvents:UIControlEventTouchUpInside];
+        cell.accessoryView = addBtn;
+    }
+    
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    NSDictionary *script = self.publicScripts[indexPath.row];
+    NSString *msg = [NSString stringWithFormat:@"%@\n\nAuthor: %@\nVersion: %@\nCompatibility: iOS %@ - %@",
+                     script[@"description"] ?: @"",
+                     script[@"author"] ?: @"",
+                     script[@"version"] ?: @"1.0",
+                     script[@"minOS"] ?: @"17.0",
+                     script[@"maxOS"] ?: @"26.0.1"];
+                     
+    UIAlertController *ac = [UIAlertController alertControllerWithTitle:script[@"name"]
+                                                                message:msg
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [ac addAction:[UIAlertAction actionWithTitle:@"Close" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:ac animated:YES completion:nil];
+}
+
+#pragma mark - Local Repository Injection
+
+- (NSDictionary *)getLocalCommunityRepo {
+    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
+    NSDictionary *caches = [d dictionaryForKey:@"RepoTweaksCaches"] ?: @{};
+    return caches[@"https://community.local/"] ?: @{};
+}
+
+- (void)addScriptTapped:(UIButton *)sender {
+    NSDictionary *script = self.publicScripts[sender.tag];
+    
+    // change button to show it's downloading
+    [sender setTitle:@"..." forState:UIControlStateNormal];
+    sender.userInteractionEnabled = NO;
+    
+    NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
+    NSString *localURL = @"https://community.local/";
+    NSString *newID = script[@"id"];
+    NSString *sURL = script[@"scriptURL"];
+    
+    if (sURL.length == 0) return;
+    
+    // download script
+    [[[NSURLSession sharedSession] dataTaskWithURL:[NSURL URLWithString:sURL] completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+        if (data && !e) {
+            NSString *js = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+            if (js) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    // save script code
+                    [[NSUserDefaults standardUserDefaults] setObject:js forKey:repotweaks_script_defaults_key(localURL, newID)];
+                    
+                    NSArray *urls = [d arrayForKey:@"RepoTweaksURLs"] ?: @[];
+                    if (![urls containsObject:localURL]) {
+                        NSMutableArray *newUrls = [urls mutableCopy];
+                        [newUrls addObject:localURL];
+                        [d setObject:newUrls forKey:@"RepoTweaksURLs"];
+                    }
+                    
+                    // update the local JSON catalog cache
+                    NSDictionary *caches = [d dictionaryForKey:@"RepoTweaksCaches"] ?: @{};
+                    NSMutableDictionary *mutCaches = [caches mutableCopy];
+                    NSDictionary *repoCache = mutCaches[localURL] ?: @{
+                        @"repoName": @"Community Scripts",
+                        @"author": @"Community",
+                        @"tweaks": @[]
+                    };
+                    
+                    NSMutableDictionary *mutRepo = [repoCache mutableCopy];
+                    NSMutableArray *tweaks = [mutRepo[@"tweaks"] mutableCopy];
+                    
+                    // replace if it already exists (upgrade)
+                    for (NSInteger i = 0; i < tweaks.count; i++) {
+                        if ([tweaks[i][@"id"] isEqualToString:newID]) {
+                            [tweaks removeObjectAtIndex:i];
+                            break;
+                        }
+                    }
+                    
+                    [tweaks addObject:script];
+                    mutRepo[@"tweaks"] = tweaks;
+                    mutCaches[localURL] = mutRepo;
+                    
+                    [d setObject:mutCaches forKey:@"RepoTweaksCaches"];
+                    [d synchronize];
+                    
+                    // reload UI
+                    [self.tableView reloadData];
+                    [[NSNotificationCenter defaultCenter] postNotificationName:@"RepoTweaksDidRefreshNotification" object:nil];
+                });
+            }
+        } else {
+            // button reverts back if download failed
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [sender setTitle:@"GET" forState:UIControlStateNormal];
+                sender.userInteractionEnabled = YES;
+            });
+        }
+    }] resume];
+}
+
+#pragma mark - Submission Flow
+
+- (void)promptSubmitScript {
+    NSString *githubURL = @"https://github.com/MinePlayer16/MinePlayer16.github.io/issues/new";
+    NSURLComponents *components = [NSURLComponents componentsWithString:githubURL];
+    
+    // points to the github template
+    components.queryItems = @[
+        [NSURLQueryItem queryItemWithName:@"template" value:@"submit-script.yml"]
+    ];
+    
+    NSURL *targetURL = components.URL;
+
+    UIAlertController *confirm = [UIAlertController alertControllerWithTitle:@"Submit a Script"
+                                                                     message:@"Safari will open GitHub.\n\nPlease fill in the script details and attach/upload your .js file directly in the issue body so it can be reviewed."
+                                                              preferredStyle:UIAlertControllerStyleAlert];
+    
+    [confirm addAction:[UIAlertAction actionWithTitle:@"Open GitHub" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        if (targetURL && [[UIApplication sharedApplication] canOpenURL:targetURL]) {
+            [[UIApplication sharedApplication] openURL:targetURL options:@{} completionHandler:nil];
+        }
+    }]];
+    [confirm addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    
+    [self presentViewController:confirm animated:YES completion:nil];
 }
 
 @end

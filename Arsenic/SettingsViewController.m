@@ -33,10 +33,11 @@
 #import "tweaks/notweafications.h"
 #import "tweaks/speculumlite.h"
 #import "tweaks/actionswitch.h"
+#import "tweaks/cylinder-lite.h"
 #import <CoreMotion/CoreMotion.h>
 #import <CoreText/CoreText.h>
 #import <dlfcn.h>
-
+#import <objc/message.h>
 #import <objc/runtime.h>
 #import <sys/time.h>
 #import "DSKeepAlive.h"
@@ -50,6 +51,7 @@
 #import "installer/Package.h"
 #import "installer/PackageCatalog.h"
 #import "installer/PackageQueue.h"
+#import "installer/DarkSwordServer.h"
 #import "docs/DocsViewController.h"
 #import "UpdateChecker.h"
 #import "SBLArchiveExtractor.h"
@@ -1127,8 +1129,13 @@ extern int escape_sbx_demo2(void);
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"Select App";
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(close)];
-    
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel 
+                                                                                          target:self 
+                                                                                          action:@selector(close)];
+    [self loadApps];
+}
+
+- (void)loadApps {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager *fm = [NSFileManager defaultManager];
         NSString *userApps = @"/var/containers/Bundle/Application";
@@ -1137,9 +1144,14 @@ extern int escape_sbx_demo2(void);
         // checks for sandbox presence
         if (![fm isReadableFileAtPath:userApps]) {
             // sandbox escape if needed
-            if (settings_ensure_kexploit()) {
-                escape_sbx_demo2();
-            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                    [self sbx_escapeNotRan];
+                });
+        }
+        else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.tableView.tableHeaderView = nil;
+            });
         }
         
         NSMutableArray *temp = [NSMutableArray array];
@@ -1194,8 +1206,88 @@ extern int escape_sbx_demo2(void);
     });
 }
 
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    
+    UIView *header = self.tableView.tableHeaderView;
+    if (header) {
+        CGFloat currentTableW = self.tableView.bounds.size.width;
+        if (header.frame.size.width != currentTableW && currentTableW > 0) {
+            CGRect headerFrame = header.frame;
+            headerFrame.size.width = currentTableW;
+            header.frame = headerFrame;
+            self.tableView.tableHeaderView = header;
+        }
+    }
+}
+
 - (void)close {
     [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)sbx_escapeNotRan {
+    CGFloat tableW = self.tableView.bounds.size.width;
+    if (tableW <= 0) tableW = [UIScreen mainScreen].bounds.size.width;
+
+    CGFloat buttonW = tableW - 40.0;
+    CGFloat buttonH = 46.0;
+
+    __block UIButton *actionBtn;
+
+    __weak typeof(self) weakSelf = self;
+    UIAction *buttonAction = [UIAction actionWithTitle:@"Run Sandbox Escape"
+                                                 image:nil
+                                            identifier:nil
+                                               handler:^(__kindof UIAction * _Nonnull action) {
+        actionBtn.enabled = NO;
+        actionBtn.backgroundColor = [UIColor systemOrangeColor];
+        [actionBtn setTitle:@"Escaping Sandbox..." forState:UIControlStateNormal];
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            if (settings_ensure_kexploit()) {
+                escape_sbx_demo2();
+            }
+
+            dispatch_async(dispatch_get_main_queue(), ^{
+                weakSelf.tableView.tableHeaderView = nil;
+                [weakSelf loadApps];
+            });
+        });
+    }];
+
+    // button
+    actionBtn = [UIButton buttonWithType:UIButtonTypeSystem primaryAction:buttonAction];
+    actionBtn.frame = CGRectMake(20.0, 15.0, buttonW, buttonH);
+    actionBtn.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleWidth;
+    [actionBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    actionBtn.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
+    actionBtn.backgroundColor = [UIColor systemBlueColor];
+    actionBtn.layer.cornerRadius = 10.0;
+    actionBtn.layer.masksToBounds = YES;
+
+    // disclaimer
+    UILabel *disclaimerLabel = [[UILabel alloc] init];
+    disclaimerLabel.text = @"After you press the button, wait until you see the app list, or you may risk a kernel panic/deadlock.";
+    disclaimerLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightRegular];
+    disclaimerLabel.textColor = [UIColor secondaryLabelColor];
+    disclaimerLabel.textAlignment = NSTextAlignmentCenter;
+    disclaimerLabel.numberOfLines = 0;
+    disclaimerLabel.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleWidth;
+
+    CGSize maxLabelSize = CGSizeMake(buttonW, CGFLOAT_MAX);
+    CGSize calculatedSize = [disclaimerLabel sizeThatFits:maxLabelSize];
+    CGFloat labelH = ceil(calculatedSize.height);
+    disclaimerLabel.frame = CGRectMake(20.0, CGRectGetMaxY(actionBtn.frame) + 8.0, buttonW, labelH);
+
+    CGFloat totalH = CGRectGetMaxY(disclaimerLabel.frame) + 15.0;
+    UIView *containerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tableW, totalH)];
+    containerView.backgroundColor = [UIColor clearColor];
+    containerView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+
+    [containerView addSubview:actionBtn];
+    [containerView addSubview:disclaimerLabel];
+
+    self.tableView.tableHeaderView = containerView;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -1221,6 +1313,7 @@ extern int escape_sbx_demo2(void);
     }
     [self close];
 }
+
 @end
 
 @interface NotweaficationsEditorController : UITableViewController
@@ -2203,6 +2296,11 @@ NSString * const kSettingsSpeculumLiteOffsetY = @"SpeculumLiteOffsetY";
 NSString * const kSettingsActionSwitchEnabled = @"ActionSwitchEnabled";
 NSString * const kSettingsActionSwitchMode    = @"ActionSwitchMode";
 
+NSString * const kSettingsCylinderLiteEnabled = @"CylinderLiteEnabled";
+NSString * const kSettingsCylinderLiteEffectMode = @"CylinderLiteEffectMode";
+
+NSString *const kSettingsEnableDarkSwordServer = @"EnableDarkSwordServer";
+
 // Internal gate for unfinished in-development tweaks. There is no public
 // account gate; beta packages that are ready for testing stay visible.
 NSString * const kSettingsExperimentalTweaksEnabled = @"ExperimentalTweaksEnabled";
@@ -2227,6 +2325,7 @@ static BOOL settings_cleanup_in_progress(void);
 static BOOL settings_screen_awake_cached(void);
 static BOOL settings_screen_locked_cached(void);
 static void settings_restart_gravity_motion_if_active(const char *reason);
+static void settings_restart_cylinder_loop_if_active(const char *reason);
 
 extern int  escape_sbx_demo2(void);
 extern int  escape_sbx_demo2_in_session(void);
@@ -2268,6 +2367,12 @@ static volatile int g_notweafications_live_running = 0;
 static volatile int g_notweafications_live_stop_requested = 0;
 static volatile int g_speculumlite_live_running = 0;
 static volatile int g_speculumlite_live_stop_requested = 0;
+static volatile int g_cylinderlite_background_armed = 0;
+static volatile int g_cylinderlite_start_worker_running = 0;
+static volatile int g_cylinder_loop_stop_requested = 1;
+static volatile uint64_t g_cylinder_loop_generation = 0;
+static dispatch_source_t g_cylinder_timer = nil;
+static dispatch_queue_t g_cylinder_queue = nil;
 
 static void settings_mark_tweak_applied(NSString *key, BOOL applied);
 static void settings_notify_package_queue_changed_async(void);
@@ -2285,6 +2390,7 @@ static BOOL settings_gravity_motion_can_remote_call(uint64_t generation,
            !settings_cleanup_in_progress();
 }
 
+static NSTimeInterval g_last_shake_time = 0;
 static void settings_start_gravity_motion(double magnitude, double explosionForce)
 {
     (void)explosionForce;
@@ -2300,16 +2406,48 @@ static void settings_start_gravity_motion(double magnitude, double explosionForc
     NSOperationQueue *q = [[NSOperationQueue alloc] init];
     q.maxConcurrentOperationCount = 1;
 
+    // shake logic
+    void (^checkShakeToggle)(double) = ^(double gForce) {
+        if (gForce > 2.2) {
+            NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+            
+            // 2,5s cooldown
+            if (now - g_last_shake_time > 2.5) { 
+                g_last_shake_time = now;
+                
+                @synchronized (settings_rc_lock()) {
+                    if (gravitylite_is_active()) {
+                        gravitylite_stop_in_session();
+                    } else {
+                        GravityLiteConfig config = {0};
+                        config.magnitude = magnitude;
+                        config.bounce = 0.5;
+                        config.friction = 0.2;
+                        config.resistance = 0.1;
+                        config.angularResistance = 0.1;
+                        config.allowsRotation = true;
+                        config.includeDock = true;
+                        
+                        gravitylite_apply_in_session(config);
+                    }
+                }
+            }
+        }
+    };
+
     if (mm.deviceMotionAvailable) {
         mm.deviceMotionUpdateInterval = 0.05;
         [mm startDeviceMotionUpdatesToQueue:q withHandler:^(CMDeviceMotion *motion, NSError *err) {
             if (!motion || err || !settings_gravity_motion_can_remote_call(generation, mm)) return;
-            // gravity.x/y are already isolated from user movement.
+            
+            // tilt for gravity direction
             double tilt = hypot(motion.gravity.x, motion.gravity.y);
             double angle = (tilt < 0.14) ? M_PI_2 : atan2(-motion.gravity.y, motion.gravity.x);
-            double effectiveMagnitude = magnitude * ((tilt < 0.14)
-                                                     ? 0.65
-                                                     : (0.90 + fmin(tilt, 1.0) * 0.60));
+            double effectiveMagnitude = magnitude * ((tilt < 0.14) ? 0.65 : (0.90 + fmin(tilt, 1.0) * 0.60));
+
+            // check for shake
+            double userAccel = hypot(hypot(motion.userAcceleration.x, motion.userAcceleration.y), motion.userAcceleration.z);
+            checkShakeToggle(userAccel);
 
             @synchronized (settings_rc_lock()) {
                 if (!settings_gravity_motion_can_remote_call(generation, mm)) return;
@@ -2320,19 +2458,23 @@ static void settings_start_gravity_motion(double magnitude, double explosionForc
         mm.accelerometerUpdateInterval = 0.05;
         [mm startAccelerometerUpdatesToQueue:q withHandler:^(CMAccelerometerData *data, NSError *err) {
             if (!data || err || !settings_gravity_motion_can_remote_call(generation, mm)) return;
+            
+            // tilt for gravity direction
             double tilt = hypot(data.acceleration.x, data.acceleration.y);
             double angle = (tilt < 0.14) ? M_PI_2 : atan2(-data.acceleration.y, data.acceleration.x);
-            double effectiveMagnitude = magnitude * ((tilt < 0.14)
-                                                     ? 0.65
-                                                     : (0.90 + fmin(tilt, 1.2) * 0.50));
+            double effectiveMagnitude = magnitude * ((tilt < 0.14) ? 0.65 : (0.90 + fmin(tilt, 1.2) * 0.50));
+            
+            // check for shake (-1G)
+            double totalAccel = hypot(hypot(data.acceleration.x, data.acceleration.y), data.acceleration.z);
+            checkShakeToggle(fabs(totalAccel - 1.0));
+
             @synchronized (settings_rc_lock()) {
                 if (!settings_gravity_motion_can_remote_call(generation, mm)) return;
                 gravitylite_update_gravity_angle_in_session(angle, effectiveMagnitude);
             }
         }];
     }
-    printf("[GRAVITY] Accelerometer active — tilt-only icon physics (magnitude=%.1fx)\n",
-           magnitude);
+    printf("[GRAVITY] Motion tracker active — shake device to toggle effect\n");
 }
 
 static void settings_stop_gravity_motion(void)
@@ -2345,6 +2487,59 @@ static void settings_stop_gravity_motion(void)
     [mm stopDeviceMotionUpdates];
     [mm stopAccelerometerUpdates];
     printf("[GRAVITY] Accelerometer stopped.\n");
+}
+
+
+static BOOL settings_cylinder_loop_can_remote_call(uint64_t generation,
+                                                   dispatch_source_t timer)
+{
+    return timer &&
+           timer == g_cylinder_timer &&
+           generation == g_cylinder_loop_generation &&
+           g_cylinder_loop_stop_requested == 0 &&
+           g_springboard_rc_ready != 0 &&
+           !settings_screen_locked_cached() &&
+           settings_screen_awake_cached() &&
+           !settings_cleanup_in_progress();
+}
+
+static void settings_stop_cylinder_loop(void)
+{
+    __sync_lock_test_and_set(&g_cylinder_loop_stop_requested, 1);
+    __sync_add_and_fetch(&g_cylinder_loop_generation, 1);
+    dispatch_source_t timer = g_cylinder_timer;
+    if (!timer) return;
+    g_cylinder_timer = nil;
+    dispatch_source_cancel(timer);
+    printf("[CYLINDER] Scroll observer loop stopped.\n");
+}
+
+static void settings_start_cylinder_loop(CylinderLiteMode mode)
+{
+    settings_stop_cylinder_loop();
+
+    if (!g_cylinder_queue) {
+        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_USER_INTERACTIVE, 0);
+        g_cylinder_queue = dispatch_queue_create("com.arsenic.cylinderlite.queue", attr);
+    }
+
+    uint64_t generation = __sync_add_and_fetch(&g_cylinder_loop_generation, 1);
+    __sync_lock_test_and_set(&g_cylinder_loop_stop_requested, 0);
+
+    uint64_t intervalMS = 8ULL;
+
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, g_cylinder_queue);
+    g_cylinder_timer = timer;
+    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 0), intervalMS * NSEC_PER_MSEC, 0);
+    dispatch_source_set_event_handler(timer, ^{
+        if (!settings_cylinder_loop_can_remote_call(generation, timer)) return;
+        @synchronized (settings_rc_lock()) {
+            if (!settings_cylinder_loop_can_remote_call(generation, timer)) return;
+            cylinderlite_tick_in_session();
+        }
+    });
+    dispatch_resume(timer);
+    printf("[CYLINDER] Scroll observer active (interval=%llums)\n", intervalMS);
 }
 
 typedef void (*SettingsTweakRequestStopFunc)(void);
@@ -2380,6 +2575,11 @@ static void settings_request_stagestrip_stop(void) { stagestrip_stop_control_loo
 static void settings_request_livewp_stop(void) { g_livewp_live_stop_requested = 1; }
 static void settings_request_notweafications_stop(void) { g_notweafications_live_stop_requested = 1; }
 static void settings_request_speculumlite_stop(void) { g_speculumlite_live_stop_requested = 1; }
+static void settings_request_cylinderlite_stop(void)
+{
+    __sync_lock_test_and_set(&g_cylinderlite_background_armed, 0);
+    settings_stop_cylinder_loop();
+}
 
 static BOOL settings_statbar_running(void) { return g_statbar_live_running != 0; }
 static BOOL settings_nsbar_running(void) { return g_nsbar_live_running != 0; }
@@ -2465,6 +2665,13 @@ static bool settings_stop_stagestrip_registered(BOOL springboardWillDie)
 {
     (void)springboardWillDie;
     return stagestrip_stop_in_session();
+}
+
+static bool settings_stop_cylinderlite_registered(BOOL springboardWillDie)
+{
+    (void)springboardWillDie;
+    settings_request_cylinderlite_stop();
+    return cylinderlite_stop_in_session();
 }
 
 static volatile int g_fastlockx_lite_remote_active_state = -1;
@@ -2577,6 +2784,7 @@ static void settings_each_springboard_cleanup_entry(void (^block)(const Settings
         { kSettingsNotweaficationsEnabled, "Notweafications", settings_request_notweafications_stop, settings_stop_notweafications_registered, notweafications_forget_remote_state, settings_notweafications_running, YES, YES },
         { kSettingsSpeculumLiteEnabled, "Speculum Lite", settings_request_speculumlite_stop, settings_stop_speculumlite_registered, speculumlite_forget_remote_state, settings_speculumlite_running, YES, YES },
         { kSettingsActionSwitchEnabled, "Action Switch", NULL, settings_stop_actionswitch_registered, actionswitch_forget_remote_state, NULL, YES, YES },
+        { kSettingsCylinderLiteEnabled, "Cylinder Lite", settings_request_cylinderlite_stop, settings_stop_cylinderlite_registered, cylinderlite_forget_remote_state, NULL, YES, YES },
         { nil, "Kill All Apps", NULL, NULL, killallapps_forget_remote_state, NULL, NO, NO },
     };
     size_t count = sizeof(entries) / sizeof(entries[0]);
@@ -3500,6 +3708,7 @@ static void settings_install_screen_awake_observers(void)
                 settings_restart_gravity_motion_if_active("screen awake");
                 settings_apply_speculumlite_once_async("screen awake");
                 settings_apply_notweafications_once_async("screen awake");
+                settings_restart_cylinder_loop_if_active("screen awake");
             }
         });
         if (status != NOTIFY_STATUS_OK) {
@@ -3522,6 +3731,7 @@ static void settings_install_screen_awake_observers(void)
                 settings_restart_gravity_motion_if_active("display awake");
                 settings_apply_speculumlite_once_async("display awake");
                 settings_apply_notweafications_once_async("display awake");
+                settings_restart_cylinder_loop_if_active("display awake");
             }
         });
         if (status != NOTIFY_STATUS_OK) {
@@ -3538,10 +3748,12 @@ static void settings_install_screen_awake_observers(void)
                 settings_sync_fastlockx_lite_for_screen_state_async("springboard.lockstate");
             }
             if (changed && g_screen_locked) {
-                // Stop the accelerometer before the XPC/shmem stack tears down on lock —
-                // otherwise the next callback fires into a stale shmem mapping.
                 settings_stop_gravity_motion();
                 gravitylite_forget_remote_state();
+                settings_stop_cylinder_loop();
+            } else if (changed && !g_screen_locked) {
+                settings_restart_gravity_motion_if_active("screen unlocked");
+                settings_restart_cylinder_loop_if_active("screen unlocked");
             }
         });
         if (status != NOTIFY_STATUS_OK) {
@@ -3556,9 +3768,21 @@ static void settings_install_screen_awake_observers(void)
             
             // fetch the mode
             NSString *mode = [d stringForKey:kSettingsActionSwitchMode];
-            
-            // checks if the segmented control string contains the word "single", then it triggers.
             BOOL isSingleFlip = mode && [mode localizedCaseInsensitiveContainsString:@"single"];
+            
+            // read the new keys
+            NSString *primaryAction = [d stringForKey:@"kSettingsActionSwitchPrimary"] ?: @"Flashlight";
+            NSString *actionStr = primaryAction;
+            
+            // If the user selected "Shortcut", swap the target string to the actual shortcut name
+            if ([primaryAction isEqualToString:@"Shortcut"]) {
+                NSString *shortcutName = [d stringForKey:@"kSettingsActionSwitchShortcut"];
+                if (shortcutName && shortcutName.length > 0) {
+                    actionStr = shortcutName;
+                }
+            }
+            
+            const char *actionCStr = [actionStr UTF8String];
             
             uint64_t now_ms = settings_now_ms();
             
@@ -3566,11 +3790,11 @@ static void settings_install_screen_awake_observers(void)
             if (isSingleFlip) {
                 @synchronized (settings_rc_lock()) {
                     if (g_springboard_rc_ready && !settings_cleanup_in_progress()) {
-                        bool ok = actionswitch_toggle_flashlight();
-                        if (ok == 1)
-                            printf("[SETTINGS] Action Switch toggled! Result: OK\n");
+                        bool ok = actionswitch_trigger_action(actionCStr);
+                        if (ok)
+                            printf("[SETTINGS] Action Switch triggered '%s'! Result: OK\n", actionCStr);
                         else
-                            printf("[SETTINGS] Action Switch toggled! Result: ERROR\n");
+                            printf("[SETTINGS] Action Switch triggered '%s'! Result: ERROR\n", actionCStr);
                     }
                 }
             } 
@@ -3581,11 +3805,11 @@ static void settings_install_screen_awake_observers(void)
                     
                     @synchronized (settings_rc_lock()) {
                         if (g_springboard_rc_ready && !settings_cleanup_in_progress()) {
-                            bool ok = actionswitch_toggle_flashlight();
-                            if (ok == 1)
-                                printf("[SETTINGS] Action Switch toggled! Result: OK\n");
+                            bool ok = actionswitch_trigger_action(actionCStr);
+                            if (ok)
+                                printf("[SETTINGS] Action Switch triggered '%s'! Result: OK\n", actionCStr);
                             else
-                                printf("[SETTINGS] Action Switch toggled! Result: ERROR\n");
+                                printf("[SETTINGS] Action Switch triggered '%s'! Result: ERROR\n", actionCStr);
                         }
                     }
                 } else {
@@ -3593,6 +3817,7 @@ static void settings_install_screen_awake_observers(void)
                 }
             }
         });
+
         if (status != NOTIFY_STATUS_OK) {
             g_ringer_state_notify_token = NOTIFY_TOKEN_INVALID;
         }
@@ -4952,6 +5177,33 @@ static bool settings_apply_gravitylite_from_defaults_locked(NSUserDefaults *d)
     return gravitylite_apply_in_session(settings_gravitylite_config_from_defaults(d));
 }
 
+static CylinderLiteConfig settings_cylinderlite_config_from_defaults(NSUserDefaults *d)
+{
+    NSString *effectString = [d stringForKey:kSettingsCylinderLiteEffectMode];
+    
+    CylinderLiteMode selectedMode = CylinderLiteModeCubeInside; // default is 0
+    
+    if ([effectString isEqualToString:@"Cube Outside"]) {
+        selectedMode = CylinderLiteModeCubeOutside;
+    } else if ([effectString isEqualToString:@"Card (Horizontal)"]) {
+        selectedMode = CylinderLiteModeCardHorizontal;
+    } else if ([effectString isEqualToString:@"Blinds"]) {
+        selectedMode = CylinderLiteModeBlinds;
+    }
+    
+    CylinderLiteConfig config = {
+        .mode = selectedMode,
+    };
+    
+    return config;
+}
+
+static bool settings_apply_cylinderlite_from_defaults_locked(NSUserDefaults *d)
+{
+    if (![d boolForKey:kSettingsCylinderLiteEnabled]) return false;
+    return cylinderlite_apply_in_session(settings_cylinderlite_config_from_defaults(d));
+}
+
 static double settings_fastlockx_lite_retry_interval(NSUserDefaults *d)
 {
     id raw = [d objectForKey:kSettingsFastLockXLiteRetryInterval];
@@ -5003,6 +5255,53 @@ static bool settings_arm_gravitylite_for_background_start_locked(NSUserDefaults 
     __sync_lock_test_and_set(&g_gravitylite_background_armed, 1);
     settings_mark_tweak_applied(kSettingsGravityLiteEnabled, YES);
     printf("[SETTINGS] Gravity Lite armed for background start%s%s stop=%d\n",
+           reason ? ": " : "", reason ?: "", stopped);
+    return true;
+}
+
+static void settings_restart_cylinder_loop_if_active(const char *reason)
+{
+    if (!settings_device_supported() || settings_cleanup_in_progress()) return;
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    if (![d boolForKey:kSettingsCylinderLiteEnabled]) return;
+    if (!settings_tweak_is_applied(kSettingsCylinderLiteEnabled)) return;
+    if (!g_springboard_rc_ready) return;
+    if (g_cylinder_loop_stop_requested == 0 && g_cylinder_timer) return;
+
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+        if (settings_cleanup_in_progress() || !g_springboard_rc_ready) return;
+        (void)settings_refresh_screen_awake_state(reason ?: "cylinder restart");
+        (void)settings_refresh_screen_lock_state(reason ?: "cylinder restart");
+        if (!settings_screen_awake_cached() || settings_screen_locked_cached()) return;
+        if (g_cylinder_loop_stop_requested == 0 && g_cylinder_timer) return;
+
+        CylinderLiteConfig config = settings_cylinderlite_config_from_defaults(d);
+        bool ok = false;
+        @synchronized (settings_rc_lock()) {
+            if (settings_cleanup_in_progress() || !g_springboard_rc_ready) return;
+            if (!cylinderlite_is_active()) {
+                ok = cylinderlite_apply_in_session(config);
+            } else {
+                ok = true;
+            }
+        }
+        if (ok && (g_cylinder_loop_stop_requested != 0 || !g_cylinder_timer)) {
+            settings_start_cylinder_loop(config.mode);
+            printf("[CYLINDER] scroll loop restarted%s%s\n",
+                   reason ? ": " : "", reason ?: "");
+        }
+    });
+}
+
+static bool settings_arm_cylinderlite_for_background_start_locked(NSUserDefaults *d,
+                                                                  const char *reason)
+{
+    if (![d boolForKey:kSettingsCylinderLiteEnabled]) return false;
+    settings_stop_cylinder_loop();
+    bool stopped = cylinderlite_stop_in_session();
+    __sync_lock_test_and_set(&g_cylinderlite_background_armed, 1);
+    settings_mark_tweak_applied(kSettingsCylinderLiteEnabled, YES);
+    printf("[SETTINGS] Cylinder Lite armed for background start%s%s stop=%d\n",
            reason ? ": " : "", reason ?: "", stopped);
     return true;
 }
@@ -5109,6 +5408,38 @@ static void settings_apply_armed_gravitylite_once_async(const char *reason)
             settings_notify_package_queue_changed_async();
         } @finally {
             __sync_lock_release(&g_gravitylite_start_worker_running);
+        }
+    });
+}
+
+static void settings_apply_armed_cylinderlite_once_async(const char *reason)
+{
+    if (g_cylinderlite_start_worker_running != 0 || g_cylinderlite_background_armed == 0 || settings_cleanup_in_progress()) return;
+    if (__sync_lock_test_and_set(&g_cylinderlite_start_worker_running, 1)) return;
+
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        @try {
+            usleep(120000);
+            if (settings_cleanup_in_progress() || ![d boolForKey:kSettingsCylinderLiteEnabled] || !g_springboard_rc_ready) return;
+
+            bool ok = false;
+            CylinderLiteConfig appliedConfig = {0};
+            @synchronized (settings_rc_lock()) {
+                if (!__sync_bool_compare_and_swap(&g_cylinderlite_background_armed, 1, 0)) return;
+                appliedConfig = settings_cylinderlite_config_from_defaults(d);
+                ok = cylinderlite_apply_in_session(appliedConfig);
+                settings_mark_tweak_applied(kSettingsCylinderLiteEnabled, ok && [d boolForKey:kSettingsCylinderLiteEnabled]);
+            }
+            if (ok) {
+                settings_start_cylinder_loop(appliedConfig.mode);
+                log_user("[OK] Cylinder Lite active.\n");
+            } else {
+                log_user("[WARN] Cylinder Lite did not start cleanly.\n");
+            }
+            settings_notify_package_queue_changed_async();
+        } @finally {
+            __sync_lock_release(&g_cylinderlite_start_worker_running);
         }
     });
 }
@@ -7412,6 +7743,7 @@ void settings_application_did_enter_background(void)
         ([d boolForKey:kSettingsNSBarEnabled]       && g_springboard_rc_ready) ||
         ([d boolForKey:kSettingsNiceBarLiteEnabled] && g_springboard_rc_ready) ||
         ([d boolForKey:kSettingsGravityLiteEnabled] && g_springboard_rc_ready) ||
+        ([d boolForKey:kSettingsCylinderLiteEnabled] && g_springboard_rc_ready) ||
         themerLiveNeeded ||
         ([d boolForKey:kSettingsLiveWPEnabled]      && g_springboard_rc_ready) ||
         ([d boolForKey:kSettingsNotweaficationsEnabled]    && g_springboard_rc_ready) ||
@@ -7457,6 +7789,13 @@ void settings_application_did_enter_background(void)
     }
     if ([d boolForKey:kSettingsLiveWPEnabled] && g_springboard_rc_ready) {
         settings_pause_livewp_for_sleep_async("entered background");
+    }
+    if ([d boolForKey:kSettingsCylinderLiteEnabled] && g_springboard_rc_ready) {
+        if (g_cylinderlite_background_armed != 0) {
+            settings_apply_armed_cylinderlite_once_async("entered background");
+        } else {
+            settings_restart_cylinder_loop_if_active("entered background");
+        }
     }
     if (![d boolForKey:kSettingsStatBarEnabled] || !g_springboard_rc_ready) {
         return;
@@ -7679,6 +8018,12 @@ static BOOL settings_key_is_location_sim(NSString *key)
            [key isEqualToString:kSettingsLocationSimAltitude] ||
            [key isEqualToString:kSettingsLocationSimHorizontalAccuracy] ||
            [key isEqualToString:kSettingsLocationSimHostProcess];
+}
+
+static BOOL settings_key_is_cylinderlite(NSString *key)
+{
+    return [key isEqualToString:kSettingsCylinderLiteEnabled] ||
+           [key isEqualToString:kSettingsCylinderLiteEffectMode];
 }
 
 static NSString *settings_location_sim_host_process(NSUserDefaults *d)
@@ -8761,6 +9106,39 @@ static void settings_schedule_live_apply_for_key(NSString *key)
         }
         return;
     }
+
+
+    if (settings_key_is_cylinderlite(key)) {
+        if ([d boolForKey:kSettingsCylinderLiteEnabled] && g_springboard_rc_ready) {
+            dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                @synchronized (settings_rc_lock()) {
+                    if (settings_cleanup_in_progress() || !g_springboard_rc_ready) return;
+                    bool ok = settings_app_state_is_foreground()
+                        ? settings_arm_cylinderlite_for_background_start_locked(d, "live settings")
+                        : settings_apply_cylinderlite_from_defaults_locked(d);
+                    if (ok && !settings_app_state_is_foreground()) {
+                        settings_start_cylinder_loop(settings_cylinderlite_config_from_defaults(d).mode);
+                    }
+                    settings_mark_tweak_applied(kSettingsCylinderLiteEnabled,
+                                                ok && [d boolForKey:kSettingsCylinderLiteEnabled]);
+                }
+                settings_notify_package_queue_changed_async();
+            });
+        } else if (![d boolForKey:kSettingsCylinderLiteEnabled]) {
+            __sync_lock_test_and_set(&g_cylinderlite_background_armed, 0);
+            settings_stop_cylinder_loop();
+            settings_mark_tweak_applied(kSettingsCylinderLiteEnabled, NO);
+            settings_notify_package_queue_changed_async();
+            if (g_springboard_rc_ready) {
+                dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                    @synchronized (settings_rc_lock()) {
+                        if (g_springboard_rc_ready) cylinderlite_stop_in_session();
+                    }
+                });
+            }
+        }
+        return;
+    }
     
 
     if (settings_key_is_gravitylite(key)) {
@@ -9019,6 +9397,11 @@ void settings_register_defaults(void)
         kSettingsActionSwitchEnabled: @NO,
         kSettingsActionSwitchMode: @"Single Flip",
 
+        kSettingsCylinderLiteEnabled: @NO,
+        kSettingsCylinderLiteEffectMode: @0,
+
+        kSettingsEnableDarkSwordServer: @NO,
+
         kSettingsExperimentalTweaksEnabled: @NO,
 
         kSettingsNanoMaxPairing:       @(kNanoDefaultMaxPairing),
@@ -9164,6 +9547,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             BOOL layoutExtrasEnabled = [d boolForKey:kSettingsLayoutExtrasEnabled];
             BOOL stageStripEnabled = settings_stagestrip_install_allowed() && [d boolForKey:kSettingsStageStripEnabled];
             BOOL gravityLiteEnabled = [d boolForKey:kSettingsGravityLiteEnabled];
+            BOOL cylinderLiteEnabled = [d boolForKey:kSettingsCylinderLiteEnabled];
             BOOL runSBC = settings_enabled_tweak_should_run(d, kSettingsSBCEnabled, springBoardPendingOnly);
             BOOL runDarkTweaks = settings_dark_tweaks_should_run(d, springBoardPendingOnly);
             BOOL runStatBar = settings_enabled_tweak_should_run(d, kSettingsStatBarEnabled, springBoardPendingOnly);
@@ -9191,12 +9575,13 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             BOOL runNotweafications = settings_enabled_tweak_should_run(d, kSettingsNotweaficationsEnabled, springBoardPendingOnly);
             BOOL runSpeculumLite = settings_enabled_tweak_should_run(d, kSettingsSpeculumLiteEnabled, springBoardPendingOnly);
             BOOL runActionSwitch = settings_enabled_tweak_should_run(d, kSettingsActionSwitchEnabled, springBoardPendingOnly);
+            BOOL runCylinderLite = settings_enabled_tweak_should_run(d, kSettingsCylinderLiteEnabled, springBoardPendingOnly);
             BOOL stagePausesThemerLive = settings_themer_dynamic_updates_blocked_by_stage(d);
             if (stagePausesThemerLive) {
                 settings_note_themer_stage_conflict(YES);
             }
             BOOL cleanupDisabledSpringBoardTweaks = settings_disabled_applied_springboard_cleanup_needed(d);
-            BOOL needsSpringBoardWork = runSBC || runDarkTweaks || runStatBar || runNSBar || runNiceBarLite || runRSSI || runAxonLite || runGravityLite || runLayoutExtras || runTypeBanner || runNotificationIsland || runAppSwitcherGrid || runThemer || runSnowBoardLite || runLiveWP || runStageStrip || runFastLockXLite || runQuickLoader || runRepoTweaks || runMagsafe || runNotweafications || runSpeculumLite || runActionSwitch || cleanupDisabledSpringBoardTweaks;
+            BOOL needsSpringBoardWork = runSBC || runDarkTweaks || runStatBar || runNSBar || runNiceBarLite || runRSSI || runAxonLite || runGravityLite || runLayoutExtras || runTypeBanner || runNotificationIsland || runAppSwitcherGrid || runThemer || runSnowBoardLite || runLiveWP || runStageStrip || runFastLockXLite || runQuickLoader || runRepoTweaks || runMagsafe || runNotweafications || runSpeculumLite || runActionSwitch || runCylinderLite || cleanupDisabledSpringBoardTweaks;
             BOOL runSandboxEscape = [d boolForKey:kSettingsRunSandboxEscape] && (!pendingOnly || needsSpringBoardWork);
             // TypeBanner prewarms its hidden SpringBoard window during Apply
             // and reuses the open SpringBoard session for text-only updates.
@@ -9237,6 +9622,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             if (runNotweafications) total++;
             if (runSpeculumLite) total++;
             if (runActionSwitch) total++;
+            if (runCylinderLite) total++;
             if (cleanupDisabledSpringBoardTweaks) total++;
             NSUInteger step = 0;
             BOOL startStageStripControlLoopAfterInstall = NO;
@@ -9267,6 +9653,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
             if (runNotweafications) [enabledTweaks addObject:@"notweafications"];
             if (runSpeculumLite) [enabledTweaks addObject:@"speculum"];
             if (runActionSwitch) [enabledTweaks addObject:@"actionswitch"];
+            if (runCylinderLite) [enabledTweaks addObject:@"cylinder"];
             if (cleanupDisabledSpringBoardTweaks) [enabledTweaks addObject:@"cleanup"];
             if (forceSpringBoardRefresh) [enabledTweaks addObject:@"springboard-refresh"];
             log_user("[PLAN] %lu stages: %s\n",
@@ -9291,6 +9678,7 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                 if (!speculumLiteEnabled) g_speculumlite_live_stop_requested = 1;
                 if (!gravityLiteEnabled) settings_request_gravitylite_stop();
                 if (!stageStripEnabled) settings_request_stagestrip_stop();
+                if (!cylinderLiteEnabled) settings_request_cylinderlite_stop();
                 log_user("[DONE] No pending runtime changes to apply.\n");
                 runSucceeded = YES;
                 runCompletionMessage = @"Done. No pending runtime changes to apply.";
@@ -9356,6 +9744,10 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                     if (runSandboxEscape && !g_springboard_sandbox_escaped) {
                         settings_progress(&step, total, "Lifting SpringBoard filesystem sandbox");
                         int sbx = escape_sbx_demo2_in_session();
+                        if ([[NSUserDefaults standardUserDefaults] boolForKey:kSettingsEnableDarkSwordServer]) {
+                            printf("[RPC] Exploit ready & toggle enabled: Auto-starting DarkSword RPC Server...\n");
+                            start_darksword_server();
+                        }
                         g_springboard_sandbox_escaped = (sbx == 0);
                         log_user("%s Filesystem sandbox %s.\n",
                                  sbx == 0 ? "[OK]" : "[WARN]",
@@ -9671,6 +10063,38 @@ static void settings_run_actions_internal(BOOL pendingOnly)
                         settings_mark_tweak_applied(kSettingsActionSwitchEnabled, [d boolForKey:kSettingsActionSwitchEnabled]);
                     }
 
+                    if (runCylinderLite) {
+                        settings_progress(&step, total, "Starting Cylinder Lite page effects");
+                        log_user("[CYLINDER] Caching SpringBoard icon pages...\n");
+                        __sync_lock_test_and_set(&g_cylinderlite_background_armed, 0);
+                        settings_stop_cylinder_loop();
+                        cylinderlite_stop_in_session();
+                        CylinderLiteConfig clConfig = settings_cylinderlite_config_from_defaults(d);
+                        bool ok = cylinderlite_apply_in_session(clConfig);
+                        settings_mark_tweak_applied(kSettingsCylinderLiteEnabled,
+                                                    ok && [d boolForKey:kSettingsCylinderLiteEnabled]);
+                        if (ok) {
+                            settings_start_cylinder_loop(clConfig.mode);
+                            log_user("[OK] Cylinder Lite active.\n");
+                            arsenic_upload_log_milestone(@"cylinder-lite-applied");
+                        } else {
+                            log_user("[WARN] Cylinder Lite did not start cleanly.\n");
+                            arsenic_upload_log_milestone(@"cylinder-lite-warning");
+                            runHadBlockingFailure = YES;
+                            runCompletionMessage = @"Cylinder Lite did not start cleanly.";
+                        }
+                    } else if (!cylinderLiteEnabled) {
+                        __sync_lock_test_and_set(&g_cylinderlite_background_armed, 0);
+                        settings_stop_cylinder_loop();
+                        cylinderlite_stop_in_session();
+                    } else if (settings_tweak_is_applied(kSettingsCylinderLiteEnabled)) {
+                        CylinderLiteConfig clConfig = settings_cylinderlite_config_from_defaults(d);
+                        if (!cylinderlite_is_active()) {
+                            cylinderlite_apply_in_session(clConfig);
+                        }
+                        settings_start_cylinder_loop(clConfig.mode);
+                    }
+
                     if (runNotificationIsland) {
                         settings_progress(&step, total, "Starting Notification Island");
                         bool ok = notificationisland_apply_in_session();
@@ -9937,6 +10361,7 @@ void settings_run_pending_actions(void)
 typedef NS_ENUM(NSInteger, SettingsSection) {
     SectionWarning = 0,
     SectionLaunch,
+    SectionServer,
     SectionActions,
     SectionOTA,
     SectionSBC,
@@ -9966,6 +10391,7 @@ typedef NS_ENUM(NSInteger, SettingsSection) {
     SectionNotweafications,
     SectionSpeculumLite,
     SectionActionSwitch,
+    SectionCylinderLite,
     SectionCount,
 };
 
@@ -10478,6 +10904,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"stepper"];
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"slider"];
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"segmented"];
+    [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"menu"];
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"action"];
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"button"];
     [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"warning"];
@@ -10747,6 +11174,17 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     for (NSDictionary *r in rows)
         if (![r[@"a18Only"] boolValue]) [filtered addObject:r];
     return filtered;
+}
+
+- (NSArray<NSDictionary *> *)serverRows
+{
+    return @[
+        @{
+            @"key": kSettingsEnableDarkSwordServer,
+            @"title": @"Arsenic Server",
+            @"subtitle": @"Listens for requests from client apps."
+        },
+    ];
 }
 
 // The master enable / install-equivalent rows have been removed from each
@@ -11282,6 +11720,16 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     ];
 }
 
+- (NSArray<NSDictionary *> *)cylinderLiteRows {
+    return @[
+        @{ @"kind": @"menu",
+           @"key": kSettingsCylinderLiteEffectMode,
+           @"title": @"Effect",
+           @"options": @[@"Cube Inside", @"Cube Outside", @"Card (Horizontal)", @"Blinds"],
+           @"default": @"Cube Inside" }
+    ];
+}
+
 + (NSArray<NSDictionary<NSString *, NSString *> *> *)settingsSummaryForSection:(NSInteger)section
 {
     NSUserDefaults *d = NSUserDefaults.standardUserDefaults;
@@ -11373,6 +11821,12 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         [out addObject:@{@"title": @"Friction",     @"value": [NSString stringWithFormat:@"%ld%%", (long)[d integerForKey:kSettingsGravityLiteFrictionPct]]}];
         [out addObject:@{@"title": @"Resistance",   @"value": [NSString stringWithFormat:@"%ld%%", (long)[d integerForKey:kSettingsGravityLiteResistancePct]]}];
         [out addObject:@{@"title": @"Spin resist.", @"value": [NSString stringWithFormat:@"%ld%%", (long)[d integerForKey:kSettingsGravityLiteAngularResistancePct]]}];
+    } else if (section == SectionCylinderLite) {
+        NSString *mName = [d stringForKey:kSettingsCylinderLiteEffectMode];
+        if (!mName || mName.length == 0) {
+            mName = @"Cube Inside";
+        }
+        [out addObject:@{@"title": @"Effect", @"value": mName}];
     }
     return out;
 }
@@ -11381,6 +11835,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
 {
     switch (s) {
         case SectionLaunch:    return self.launchRows;
+        case SectionServer:    return self.serverRows;
         case SectionSBC:       return self.sbcRows;
         case SectionDarkSwordTweaks: return self.darkSwordTweakRows;
         case SectionDragCoefficient: return self.dragCoefficientRows;
@@ -11409,6 +11864,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         case SectionNotweafications:  return self.notweaficationsRows;
         case SectionSpeculumLite: return self.speculumLiteRows;
         case SectionActionSwitch: return self.actionSwitchRows;
+        case SectionCylinderLite: return self.cylinderLiteRows;
         default: return @[];
     }
 }
@@ -11422,7 +11878,8 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
 - (NSArray<NSDictionary *> *)allTweakBundleRows
 {
     return @[
-        @{ @"title": @"Launch Options",     @"icon": @"bolt.fill",                          @"color": [UIColor systemRedColor],    @"section": @(SectionLaunch) },
+        @{ @"title": @"Launch Options",     @"icon": @"bolt.fill",                           @"color": [UIColor systemRedColor],    @"section": @(SectionLaunch) },
+        @{ @"title": @"Arsenic Server",         @"icon": @"network",                             @"color": [UIColor systemBlueColor],   @"section": @(SectionServer) },
         @{ @"title": @"SBCustomizer",       @"icon": @"square.grid.3x3.fill",                @"color": [UIColor systemBlueColor],   @"section": @(SectionSBC) },
         @{ @"title": @"StatBar",            @"icon": @"thermometer.medium",                  @"color": [UIColor systemRedColor],    @"section": @(SectionStatBar) },
         @{ @"title": @"NSBar",              @"icon": @"network",                             @"color": [UIColor systemBlueColor],   @"section": @(SectionNSBar) },
@@ -11448,6 +11905,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         @{ @"title": @"Notweafications",    @"icon": @"paintpalette.fill",                   @"color": [UIColor systemOrangeColor], @"section": @(SectionNotweafications) },
         @{ @"title": @"Speculum Lite",      @"icon": @"clock.fill",                          @"color": [UIColor systemOrangeColor], @"section": @(SectionSpeculumLite) },
         @{ @"title": @"Action Switch",      @"icon": @"flashlight.on.fill",                  @"color": [UIColor systemYellowColor], @"section": @(SectionActionSwitch) },
+        @{ @"title": @"Cylinder Lite",      @"icon": @"cube.transparent.fill",               @"color": [UIColor systemCyanColor],   @"section": @(SectionCylinderLite) },
         @{ @"title": @"Powercuff",          @"icon": @"bolt.slash.fill",                     @"color": [UIColor systemOrangeColor], @"section": @(SectionPowercuff) },
         @{ @"title": @"SpringBoard Tweaks", @"icon": @"apps.iphone",                         @"color": [UIColor systemIndigoColor], @"section": @(SectionDarkSwordTweaks) },
         @{ @"title": @"Drag Coefficient",   @"icon": @"dial.medium.fill",                    @"color": [UIColor systemIndigoColor], @"section": @(SectionDragCoefficient) },
@@ -11571,6 +12029,9 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     if (s == SectionLaunch) {
         return @"kexploit_opa334 runs once per app lifetime. Keep Alive applies only while Arsenic is minimized; an App Switcher kill still terminates the process.";
     }
+    if (s == SectionServer) {
+        return @"Runs so client apps can escape their sandbox without triggering the exploit multiple times.";
+    }
     if (s == SectionSBC) {
         return [NSString stringWithFormat:@"Stock iOS defaults: dock %ld, columns %ld, rows %ld. The optional Dock app move runs after Dock expansion and before page arrangement; the Watusi WhatsApp duplicate is the initial selection. Page defaults are %ld icons on page one and %ld on later pages.",
                 (long)kSBCDefaultDockIcons, (long)kSBCDefaultCols, (long)kSBCDefaultRows,
@@ -11630,6 +12091,9 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
     }
     if (s == SectionActionSwitch) {
         return @"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch.";
+    }
+    if (s == SectionCylinderLite) {
+        return @"RemoteCall-only port of Cylinder by @ryannair05";
     }
     if (s == SectionTypeBanner) {
         return @"Partial TypeMillennium port. Detection runs against imagent using original-thread RemoteCall probes, while SpringBoard renders a prewarmed banner window.";
@@ -13813,6 +14277,71 @@ void arsenic_present_contact(UIViewController *host)
         return cell;
     }
 
+    if ([kind isEqualToString:@"menu"]) {
+        UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"menu" forIndexPath:dequeuePath];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.textLabel.text = row[@"title"];
+        
+        for (UIView *v in [cell.contentView.subviews copy]) {
+            if ([v isKindOfClass:[UIButton class]]) [v removeFromSuperview];
+        }
+        
+        NSString *prefKey = row[@"key"];
+        NSArray *options = row[@"options"];
+        NSString *cur = [[NSUserDefaults standardUserDefaults] stringForKey:prefKey] ?: [options firstObject];
+        
+        if ([cur isEqualToString:@"0"]) cur = @"Cube Inside";
+        if ([cur isEqualToString:@"1"]) cur = @"Cube Outside";
+        if ([cur isEqualToString:@"2"]) cur = @"Card (Horizontal)";
+        if ([cur isEqualToString:@"3"]) cur = @"Blinds";
+        
+        UIButton *menuButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        [menuButton setTitle:cur forState:UIControlStateNormal];
+        menuButton.translatesAutoresizingMaskIntoConstraints = NO;
+        menuButton.showsMenuAsPrimaryAction = YES;
+        
+        NSMutableArray *menuItems = [NSMutableArray array];
+        
+        for (NSString *optionName in options) {
+            UIAction *menuAction = [UIAction actionWithTitle:optionName image:nil identifier:optionName handler:^(__kindof UIAction * _Nonnull action) {
+                
+                [menuButton setTitle:action.title forState:UIControlStateNormal];
+                [[NSUserDefaults standardUserDefaults] setObject:action.title forKey:prefKey];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+                
+                // if this is cylinder lite, it injects the new settings into Springboard
+                if ([prefKey isEqualToString:kSettingsCylinderLiteEffectMode]) {
+                    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+                        @synchronized (settings_rc_lock()) {
+                            if (g_springboard_rc_ready) {
+                                settings_apply_cylinderlite_from_defaults_locked([NSUserDefaults standardUserDefaults]);
+                            }
+                        }
+                    });
+                }
+                
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [tableView reloadData];
+                });
+            }];
+            
+            if ([optionName isEqualToString:cur]) {
+                menuAction.state = UIMenuElementStateOn;
+            }
+            [menuItems addObject:menuAction];
+        }
+        
+        menuButton.menu = [UIMenu menuWithTitle:@"" children:menuItems];
+        
+        [cell.contentView addSubview:menuButton];
+        [NSLayoutConstraint activateConstraints:@[
+            [menuButton.trailingAnchor constraintEqualToAnchor:cell.contentView.layoutMarginsGuide.trailingAnchor],
+            [menuButton.centerYAnchor constraintEqualToAnchor:cell.contentView.centerYAnchor]
+        ]];
+        
+        return cell;
+    }
+
     if ([kind isEqualToString:@"ql-loaded"]) {
         UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
@@ -14071,6 +14600,22 @@ void arsenic_present_contact(UIViewController *host)
     settings_note_package_configuration_changed(key);
     if ([key isEqualToString:kSettingsKeepAlive]) {
         ds_keepalive_apply_enabled(sender.isOn);
+        return;
+    }
+    if ([key isEqualToString:kSettingsEnableDarkSwordServer]) {
+        if (sender.isOn) {
+            NSFileManager *fm = [NSFileManager defaultManager];
+            NSString *userApps = @"/var/mobile/Containers/Data/Application";
+            if ([fm isReadableFileAtPath:userApps]) {
+                printf("[Server] Sandbox escaped. Launching Arsenic Server...\n");
+                start_darksword_server();
+            } else {
+                printf("[Server] Sandbox not escaped yet. Server will start after exploit completes.\n");
+            }
+        } else {
+            printf("[Server] Stopping Arsenic Server...\n");
+            stop_darksword_server();
+        }
         return;
     }
     if (settings_key_affects_package_state(key)) {
@@ -15968,6 +16513,18 @@ void arsenic_present_contact(UIViewController *host)
         }
         return;
     }
+    if (indexPath.section == SectionActionSwitch) {
+        NSDictionary *row = [self rowsForSection:indexPath.section][indexPath.row];
+        if (![row[@"kind"] isEqualToString:@"button"]) return;
+        
+        NSString *action = row[@"action"];
+        if ([action isEqualToString:@"addSavedShortcut"]) {
+            [self addSavedShortcut];
+        } else if ([action isEqualToString:@"deleteSavedShortcut"]) {
+            [self deleteSavedShortcut];
+        }
+        return;
+    }
 }
 
 - (NSArray<NSDictionary *> *)repoTweaksRows {
@@ -15977,10 +16534,64 @@ void arsenic_present_contact(UIViewController *host)
 }
 
 - (NSArray<NSDictionary *> *)actionSwitchRows {
-    return @[
-        @{ @"kind": @"switch", @"key": kSettingsActionSwitchEnabled, @"title": @"Enable Action Switch" },
-        @{ @"kind": @"segmented", @"key": kSettingsActionSwitchMode, @"title": @"Trigger Mode" }
-    ];
+    NSMutableArray<NSDictionary *> *rows = [NSMutableArray array];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    
+    [rows addObject:@{ @"kind": @"switch", @"key": kSettingsActionSwitchEnabled, @"title": @"Enable Action Switch" }];
+    [rows addObject:@{ @"kind": @"segmented", @"key": kSettingsActionSwitchMode, @"title": @"Trigger Mode" }];
+    
+    // choose main mode
+    [rows addObject:@{ 
+        @"kind": @"menu", 
+        @"key": @"kSettingsActionSwitchPrimary", 
+        @"title": @"Selected Action",
+        @"options": @[@"Flashlight", @"Shortcut"]
+    }];
+    
+    NSString *primaryAction = [defaults stringForKey:@"kSettingsActionSwitchPrimary"] ?: @"Flashlight";
+    
+    // only if Shortcuts is selected
+    if ([primaryAction isEqualToString:@"Shortcut"]) {
+        
+        NSArray *savedShortcuts = [defaults arrayForKey:@"kSettingsSavedShortcuts"] ?: @[];
+        NSString *activeShortcut = [defaults stringForKey:@"kSettingsActionSwitchShortcut"] ?: @"";
+        
+        NSMutableArray *options = [savedShortcuts mutableCopy];
+        if (options.count == 0) [options addObject:@"No Shortcuts Saved"];
+        
+        // choose from saved shortcuts
+        [rows addObject:@{
+            @"kind": @"menu",
+            @"key": @"kSettingsActionSwitchShortcut",
+            @"title": @"Active Shortcut",
+            @"options": options
+        }];
+        
+        [rows addObject:@{ 
+            @"kind": @"text", 
+            @"key": @"kSettingsNewShortcutInput", 
+            @"title": @"New Shortcut", 
+            @"subtitle": @"Type the exact name from the Shortcuts app."
+        }];
+        
+        [rows addObject:@{ 
+            @"kind": @"button", 
+            @"action": @"addSavedShortcut", 
+            @"title": @"Add to Shortcuts List"
+        }];
+        
+        // if shortcut is selected, show delete button
+        if (savedShortcuts.count > 0 && [savedShortcuts containsObject:activeShortcut]) {
+            [rows addObject:@{ 
+                @"kind": @"button", 
+                @"action": @"deleteSavedShortcut", 
+                @"title": [NSString stringWithFormat:@"Delete '%@'", activeShortcut],
+                @"destructive": @YES
+            }];
+        }
+    }
+    
+    return rows;
 }
 
 - (void)importSpeculumFont
@@ -16039,6 +16650,44 @@ void arsenic_present_contact(UIViewController *host)
 {
     NotweaficationsEditorController *editorVC = [[NotweaficationsEditorController alloc] initWithStyle:UITableViewStyleInsetGrouped];
     [self.navigationController pushViewController:editorVC animated:YES];
+}
+
+- (void)addSavedShortcut {
+    [self.view endEditing:YES]; 
+    
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *rawInput = [defaults stringForKey:@"kSettingsNewShortcutInput"];
+    NSString *newShortcut = [rawInput stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    
+    if (newShortcut.length > 0) {
+        NSMutableArray *saved = [[defaults arrayForKey:@"kSettingsSavedShortcuts"] mutableCopy] ?: [NSMutableArray array];
+        
+        if (![saved containsObject:newShortcut]) {
+            [saved addObject:newShortcut];
+            [defaults setObject:saved forKey:@"kSettingsSavedShortcuts"];
+            [defaults setObject:newShortcut forKey:@"kSettingsActionSwitchShortcut"];
+        }
+        
+        [defaults setObject:@"" forKey:@"kSettingsNewShortcutInput"];
+        [defaults synchronize];
+        [self.tableView reloadData];
+    }
+}
+
+- (void)deleteSavedShortcut {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSString *activeShortcut = [defaults stringForKey:@"kSettingsActionSwitchShortcut"];
+    NSMutableArray *saved = [[defaults arrayForKey:@"kSettingsSavedShortcuts"] mutableCopy] ?: [NSMutableArray array];
+    
+    if (activeShortcut && saved.count > 0) {
+        [saved removeObject:activeShortcut];
+        [defaults setObject:saved forKey:@"kSettingsSavedShortcuts"];
+        
+        NSString *next = saved.count > 0 ? saved.firstObject : @"";
+        [defaults setObject:next forKey:@"kSettingsActionSwitchShortcut"]; 
+        [defaults synchronize];
+        [self.tableView reloadData];
+    }
 }
 
 @end

@@ -15,6 +15,8 @@ This fork focuses on updating my existing tweaks and add new ones.
 * **Speculum Lite Tweak:** Live-tweak to customize the lockscreen, it supports various format tags, fonts, colors and the text labels can be positioned and scaled independently.
 * **Action Switch Tweak:** Tweak to emulate the Action Button using the Mute Switch, activates the flashlight.
 * **Kolbicz Tweaks:** Updated tweaks by Kolbicz
+* **Arsenic Server:** Makes client apps injected by Arsenic-SBX dylib (https://github.com/MinePlayer16/Arsenic-SBX) escape their sandbox without running the exploit multiple times. 
+* **Cylinder Lite Tweak:** Cylinder tweak Remote-Call-only port
 
 ## Install (AltStore / SideStore)
 Add this repository to your sideloading app to get automatic updates:
@@ -201,6 +203,7 @@ iOS/iPadOS 18.7.2 and 26.1. Later builds are outside this kernel exploit window.
   LiveWP ports.
 - [`tomt000`](https://github.com/tomt000): [Dynamic Stage](https://havoc.app/package/dynamicstage) — the original Stage Manager-for-iPhone tweak whose split-view + scene-hosting design Dynamic Stage Lite re-implements over RemoteCall.
 - [`LacertosusDeus`](https://github.com/LacertosusRepo): [Speculum](https://repo.packix.com/package/com.lacertosusrepo.speculum) — Lockscreen customization reimplemented using RemoteCall.
+- [`rweichler / ryannair05`][Cylinder](https://github.com/rweichler/cylinder) / [Cylinder-Reborn](https://github.com/ryannair05/Cylinder-Reborn) — Cylinder tweak reimplemented using RemoteCall.
 
 ### UI inspiration
 

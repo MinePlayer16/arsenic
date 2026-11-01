@@ -111,6 +111,10 @@ extern NSString * const kSettingsSpeculumLiteEnabled;
 
 extern NSString * const kSettingsActionSwitchEnabled;
 
+extern NSString * const kSettingsCylinderLiteEnabled;
+
+extern NSString * const kSettingsEnableDarkSwordServer;
+
 extern NSString * const kSettingsExperimentalTweaksEnabled;
 
 extern NSString * const kSettingsLogUploadEnabled;
