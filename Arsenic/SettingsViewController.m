@@ -12093,7 +12093,7 @@ static _ArsenicMailDelegate *_arsenic_mail_delegate(void) {
         return @"Emulates the Action Button. You can enable or disable the flashlight with the Mute Switch.";
     }
     if (s == SectionCylinderLite) {
-        return @"RemoteCall-only port of Cylinder by @ryannair05";
+        return @"RemoteCall-only port of Cylinder by @rweichler / @ryannair05";
     }
     if (s == SectionTypeBanner) {
         return @"Partial TypeMillennium port. Detection runs against imagent using original-thread RemoteCall probes, while SpringBoard renders a prewarmed banner window.";
